@@ -1,0 +1,62 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'config/theme.dart';
+import 'providers/auth_provider.dart';
+import 'services/notification_service.dart';
+import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
+import 'screens/auth_check_screen.dart';
+import 'screens/admin/admin_gate_screen.dart';
+
+void main() async {
+
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://pgfdqvtlpiiwvwvqzfgs.supabase.co',
+    anonKey: 'sb_publishable_4DyMdv2Uev08ejpJ6josCA_AUvsRNm_',
+  );
+
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  
+  // Initialize notifications with error handling
+  try {
+    final notificationService = NotificationService();
+    await notificationService.initialize();
+    notificationService.configureHandlers();
+  } catch (e) {
+    print('Notification service initialization failed: $e');
+    // App should continue without notifications
+  }
+  
+  runApp(const AlumniConnectApp());
+}
+
+class AlumniConnectApp extends StatelessWidget {
+  const AlumniConnectApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => AuthProvider(),
+      child: MaterialApp(
+        title: 'Alumni Connect',
+        theme: AppTheme.lightTheme,
+        debugShowCheckedModeBanner: false,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const SplashScreen(),
+          '/auth-check': (context) => const AuthCheckScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/signup': (context) => const SignUpScreen(),
+          '/home': (context) => const AuthCheckScreen(),
+          '/admin': (context) => const AdminGateScreen(),
+        },
+      ),
+    );
+  }
+}
