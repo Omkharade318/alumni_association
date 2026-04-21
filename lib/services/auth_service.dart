@@ -99,6 +99,19 @@ class AuthService {
       print('Error in email sign-in: $e');
       // Handle PigeonUserDetails error specifically
       if (e.toString().contains('PigeonUserDetails')) {
+        final user = _auth.currentUser;
+        if (user != null) {
+          print('Sign-in succeeded natively despite Pigeon error. Proceeding...');
+          return await _getUserWithRetry(user.uid) ?? UserModel(
+            uid: user.uid,
+            name: user.displayName ?? 'User',
+            email: user.email ?? email.trim().toLowerCase(),
+            isAdmin: false,
+            phone: user.phoneNumber,
+            profileImage: user.photoURL,
+            createdAt: user.metadata.creationTime,
+          );
+        }
         throw Exception('Authentication failed. Please try again.');
       }
       rethrow;
@@ -128,6 +141,7 @@ class AuthService {
     required String company,
     required String jobTitle,
     required String city,
+    String? degree,
     String? profileImage,
   }) async {
     try {
@@ -163,6 +177,7 @@ class AuthService {
         company: company.trim().isEmpty ? null : company.trim(),
         jobTitle: jobTitle.trim().isEmpty ? null : jobTitle.trim(),
         city: city.trim().isEmpty ? null : city.trim(),
+        degree: degree?.trim().isEmpty == true ? null : degree?.trim(),
         profileImage: profileImage?.trim().isEmpty == true ? null : profileImage?.trim(),
         createdAt: DateTime.now(),
       );
@@ -216,6 +231,31 @@ class AuthService {
       print('Error in email sign-up: $e');
       // Handle PigeonUserDetails error specifically
       if (e.toString().contains('PigeonUserDetails')) {
+        final user = _auth.currentUser;
+        if (user != null) {
+          print('Sign-up succeeded natively despite Pigeon error. Creating Firestore profile...');
+          final userModel = UserModel(
+            uid: user.uid,
+            name: name.trim(),
+            email: email.trim().toLowerCase(),
+            isAdmin: false,
+            phone: phone.trim().isEmpty ? null : phone.trim(),
+            branch: branch.trim().isEmpty ? null : branch.trim(),
+            batch: batch.trim().isEmpty ? null : batch.trim(),
+            company: company.trim().isEmpty ? null : company.trim(),
+            jobTitle: jobTitle.trim().isEmpty ? null : jobTitle.trim(),
+            city: city.trim().isEmpty ? null : city.trim(),
+            degree: degree?.trim().isEmpty == true ? null : degree?.trim(),
+            profileImage: profileImage?.trim().isEmpty == true ? null : profileImage?.trim(),
+            createdAt: DateTime.now(),
+          );
+          try {
+            await _firestore.createUser(userModel);
+          } catch (firestoreError) {
+            print('Firestore creation failed during Pigeon recovery: $firestoreError');
+          }
+          return userModel;
+        }
         throw Exception('Account creation failed. Please try again.');
       }
       rethrow;
@@ -303,6 +343,18 @@ class AuthService {
     } catch (e) {
       print('Error in Google Sign-In: $e');
       if (e.toString().contains('PigeonUserDetails')) {
+        final user = _auth.currentUser;
+        if (user != null) {
+          print('Google sign-in succeeded natively despite Pigeon error. Proceeding...');
+          return await _getUserWithRetry(user.uid) ?? UserModel(
+            uid: user.uid,
+            name: user.displayName ?? 'User',
+            email: user.email ?? '',
+            isAdmin: false,
+            profileImage: user.photoURL,
+            createdAt: user.metadata.creationTime,
+          );
+        }
         throw Exception('Google authentication failed. Please try again.');
       }
       if (e.toString().contains('network')) {

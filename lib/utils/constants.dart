@@ -22,6 +22,17 @@ class AppConstants {
     'Other',
   ];
 
+  static const List<String> degrees = [
+    'B.Tech',
+    'M.Tech',
+    'MBA',
+    'BCA',
+    'MCA',
+    'B.Sc',
+    'M.Sc',
+    'Other',
+  ];
+
   static const List<String> donationCategories = [
     'Infrastructure',
     'Computer Labs',

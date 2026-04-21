@@ -5,6 +5,10 @@ class PostModel {
   final String userId;
   final String userName;
   final String? userImage;
+  final String? userJobTitle;
+  final String? userDegree;
+  final String? userBranch;
+  final String? userBatch;
   final String content;
   final List<String>? imageUrls;
   final List<String> likes;
@@ -16,6 +20,10 @@ class PostModel {
     required this.userId,
     required this.userName,
     this.userImage,
+    this.userJobTitle,
+    this.userDegree,
+    this.userBranch,
+    this.userBatch,
     required this.content,
     this.imageUrls,
     this.likes = const [],
@@ -30,6 +38,10 @@ class PostModel {
       userId: data['userId'] ?? '',
       userName: data['userName'] ?? '',
       userImage: data['userImage'],
+      userJobTitle: data['userJobTitle'],
+      userDegree: data['userDegree'],
+      userBranch: data['userBranch'],
+      userBatch: data['userBatch'],
       content: data['content'] ?? '',
       imageUrls: data['imageUrls'] != null
           ? List<String>.from(data['imageUrls'])
@@ -47,6 +59,10 @@ class PostModel {
       'userId': userId,
       'userName': userName,
       'userImage': userImage,
+      'userJobTitle': userJobTitle,
+      'userDegree': userDegree,
+      'userBranch': userBranch,
+      'userBatch': userBatch,
       'content': content,
       'imageUrls': imageUrls ?? [],
       'likes': likes,

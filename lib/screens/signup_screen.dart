@@ -34,6 +34,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscureConfirmPassword = true;
   File? _profileImage;
   String? _selectedBranch;
+  String? _selectedDegree;
   String? _profileImageUrl;
   final StorageService _storage = StorageService();
 
@@ -73,6 +74,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           company: _companyController.text.trim(),
           jobTitle: _jobTitleController.text.trim(),
           city: _cityController.text.trim(),
+          degree: _selectedDegree,
           profileImage: null,
         );
 
@@ -199,6 +201,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   items: AppConstants.branches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
                   onChanged: (v) => setState(() => _selectedBranch = v),
                   validator: (v) => Validators.validateRequired(v ?? _selectedBranch, 'Branch'),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedDegree,
+                  decoration: const InputDecoration(labelText: 'Degree'),
+                  items: AppConstants.degrees.map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                  onChanged: (v) => setState(() => _selectedDegree = v),
+                  validator: (v) => Validators.validateRequired(v ?? _selectedDegree, 'Degree'),
                 ),
                 const SizedBox(height: 16),
                 AppTextField(

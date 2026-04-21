@@ -28,30 +28,37 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          color: AppTheme.primaryRed.withOpacity(0.1),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.primaryRed,
-            unselectedLabelColor: AppTheme.textGray,
-            tabs: const [
-              Tab(text: 'My Connections'),
-              Tab(text: 'Pending Requests'),
-            ],
-          ),
+    return Material(
+      color: Colors.white,
+      // Wrap with SafeArea to automatically add padding for the status bar/notch
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              color: AppTheme.primaryRed.withOpacity(0.1),
+              child: TabBar(
+                controller: _tabController,
+                labelColor: AppTheme.primaryRed,
+                indicatorColor: AppTheme.primaryRed,
+                unselectedLabelColor: AppTheme.textGray,
+                tabs: const [
+                  Tab(text: 'My Connections'),
+                  Tab(text: 'Pending Requests'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _ConnectionsList(),
+                  _PendingRequestsList(),
+                ],
+              ),
+            ),
+          ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _ConnectionsList(),
-              _PendingRequestsList(),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -66,6 +73,7 @@ class _ConnectionsList extends StatelessWidget {
         final connections = snapshot.data!.take(10).toList();
         if (connections.isEmpty) return const Center(child: Text('No connections yet'));
         return ListView.builder(
+          // Adjusted padding to give a little breathing room below the tabs
           padding: const EdgeInsets.all(16),
           itemCount: connections.length,
           itemBuilder: (_, i) {

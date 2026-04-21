@@ -161,6 +161,7 @@ class AuthProvider with ChangeNotifier {
     required String company,
     required String jobTitle,
     required String city,
+    String? degree,
     String? profileImage,
   }) async {
     // Clear any previous error immediately to prevent UI flash.
@@ -180,6 +181,7 @@ class AuthProvider with ChangeNotifier {
         company: company,
         jobTitle: jobTitle,
         city: city,
+        degree: degree,
         profileImage: profileImage,
       );
       

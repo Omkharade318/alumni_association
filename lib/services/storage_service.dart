@@ -70,6 +70,14 @@ class StorageService {
   }) async {
     return uploadImage('profiles/$userId', file, onProgress: onProgress);
   }
+
+  Future<String> uploadPostImage(
+    String userId, 
+    File file, {
+    Function(double)? onProgress,
+  }) async {
+    return uploadImage('posts/$userId', file, onProgress: onProgress);
+  }
 }
 
 /// A custom MultipartRequest that tracks progress

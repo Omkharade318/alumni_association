@@ -31,8 +31,6 @@ class AppDrawer extends StatelessWidget {
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AlumniDirectoryScreen()))),
                 _drawerItem(Icons.people_outline, 'My Connections',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConnectionsScreen()))),
-                _drawerItem(Icons.edit_note, 'Feed',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedScreen()))),
                 _drawerItem(Icons.work_outline, 'Job and Mentorship',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobsScreen()))),
                 _drawerItem(Icons.newspaper, 'News and Updates',

@@ -44,7 +44,7 @@ class _MainShellState extends State<MainShell> {
     final List<Widget> screens = [
 // Pass the scaffold key function so the Home menu button works
       HomeScreen(onMenuTap: () => _scaffoldKey.currentState?.openDrawer()),
-      const ConnectionsScreen(),
+      const FeedScreen(),
       const SearchAlumniScreen(),
       const EventsCalendarScreen(),
       const ProfileScreen(),
@@ -76,7 +76,7 @@ class _MainShellState extends State<MainShell> {
   String _getTitle() {
     switch (_currentIndex) {
       case 1:
-        return 'Connections';
+        return 'Feed';
       case 2:
         return 'Search';
       case 3:

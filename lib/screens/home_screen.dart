@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../models/event_model.dart';
 import '../models/news_model.dart';
 import '../widgets/app_drawer.dart';
+import 'connections_screen.dart';
 
 // Color palette from your image
 class AppColors {
@@ -161,22 +162,9 @@ class HomeScreen extends StatelessWidget {
       ),
       centerTitle: true,
       actions: [
-        Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications, color: Colors.black, size: 28),
-              onPressed: () {},
-            ),
-            Positioned(
-              right: 11,
-              top: 11,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(color: AppColors.primaryMaroon, shape: BoxShape.circle),
-                constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
-              ),
-            )
-          ],
+        IconButton(
+          icon: const Icon(Icons.people, color: Colors.black, size: 28),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ConnectionsScreen())),
         ),
       ],
     );

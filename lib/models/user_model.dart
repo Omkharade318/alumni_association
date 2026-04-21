@@ -11,6 +11,7 @@ class UserModel {
   final String? company;
   final String? jobTitle;
   final String? city;
+  final String? degree;
   final String? profileImage;
   final DateTime? createdAt;
 
@@ -25,6 +26,7 @@ class UserModel {
     this.company,
     this.jobTitle,
     this.city,
+    this.degree,
     this.profileImage,
     this.createdAt,
   });
@@ -42,6 +44,7 @@ class UserModel {
       company: data['company'],
       jobTitle: data['jobTitle'],
       city: data['city'],
+      degree: data['degree'],
       profileImage: data['profileImage'],
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
@@ -61,16 +64,21 @@ class UserModel {
       'company': company,
       'jobTitle': jobTitle,
       'city': city,
+      'degree': degree,
       'profileImage': profileImage,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
     };
   }
 
   String get displayLocation {
+    return (city != null && city!.isNotEmpty) ? city! : 'Not specified';
+  }
+
+  String get displayWork {
     final parts = <String>[];
+    if (jobTitle != null && jobTitle!.isNotEmpty) parts.add(jobTitle!);
     if (company != null && company!.isNotEmpty) parts.add(company!);
-    if (city != null && city!.isNotEmpty) parts.add(city!);
-    return parts.isEmpty ? 'Not specified' : parts.join(' | ');
+    return parts.isEmpty ? 'Alumni' : parts.join(' at ');
   }
 
   String get displayBranchBatch {
@@ -97,6 +105,7 @@ class UserModel {
     String? company,
     String? jobTitle,
     String? city,
+    String? degree,
     String? profileImage,
     DateTime? createdAt,
   }) {
@@ -111,6 +120,7 @@ class UserModel {
       company: company ?? this.company,
       jobTitle: jobTitle ?? this.jobTitle,
       city: city ?? this.city,
+      degree: degree ?? this.degree,
       profileImage: profileImage ?? this.profileImage,
       createdAt: createdAt ?? this.createdAt,
     );

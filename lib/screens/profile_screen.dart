@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../services/storage_service.dart';
 import '../services/firestore_service.dart';
 import '../models/post_model.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/profile_avatar.dart';
 import 'settings_screen.dart';
 
@@ -90,7 +91,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Center(
                   child: Stack(
                     children: [
-                      ProfileAvatar(imageUrl: user.profileImage, name: user.name, size: 120),
+                      // 1. Wrap ProfileAvatar in a GestureDetector that opens a Dialog
+                      GestureDetector(
+                        onTap: () {
+                          if (user.profileImage != null && user.profileImage!.isNotEmpty) {
+                            showDialog(
+                              context: context,
+                              builder: (BuildContext context) {
+                                return Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+                                  // 2. InteractiveViewer allows pinch-to-zoom inside the popup
+                                  child: InteractiveViewer(
+                                    clipBehavior: Clip.none,
+                                    child: Container(
+                                      width: MediaQuery.of(context).size.width,
+                                      height: MediaQuery.of(context).size.width,
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black,
+                                      ),
+                                      child: Image.network(
+                                        user.profileImage!,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(color: Colors.white),
+                                          );
+                                        },
+                                        errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(Icons.broken_image, color: Colors.white, size: 50),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }
+                        },
+                        child: ProfileAvatar(imageUrl: user.profileImage, name: user.name, size: 120),
+                      ),
                       if (_isUploading)
                         Positioned.fill(
                           child: Container(
@@ -122,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           onTap: () => _pickAndUploadImage(context, auth),
                           child: Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppTheme.primaryRed,
                               shape: BoxShape.circle,
                             ),
@@ -133,6 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 16),
                 Center(
                   child: Text(
@@ -147,6 +188,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                const Text('Contact Information', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -159,11 +202,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _ProfileInfoRow(icon: Icons.email, title: 'Email', value: user.email),
                       if (user.phone != null && user.phone!.isNotEmpty) 
                         _ProfileInfoRow(icon: Icons.phone, title: 'Phone', value: user.phone!),
-                      _ProfileInfoRow(icon: Icons.location_on, title: 'Location', value: user.displayLocation),
+                      _ProfileInfoRow(icon: Icons.location_on, title: 'City', value: user.displayLocation),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
+                const Text('Academic Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -173,17 +218,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: Column(
                     children: [
-                      _ProfileInfoRow(
-                        icon: Icons.work, 
-                        title: 'Experience', 
-                        value: _formatValue(user.jobTitle) != 'Not specified' && _formatValue(user.company) != 'Not specified'
-                            ? '${_formatValue(user.jobTitle)} at ${_formatValue(user.company)}'
-                            : _formatValue(user.jobTitle) != 'Not specified'
-                                ? _formatValue(user.jobTitle)
-                                : _formatValue(user.company)
-                      ),
-                      _ProfileInfoRow(icon: Icons.school, title: 'Education', value: user.displayBranchBatch),
-                      if (user.createdAt != null) _ProfileInfoRow(icon: Icons.calendar_today, title: 'Member Since', value: _formatDate(user.createdAt!)),
+                      _ProfileInfoRow(icon: Icons.school, title: 'Branch', value: _formatValue(user.branch)),
+                      _ProfileInfoRow(icon: Icons.history_edu, title: 'Batch', value: _formatValue(user.batch)),
+                      _ProfileInfoRow(icon: Icons.workspace_premium, title: 'Degree', value: _formatValue(user.degree)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text('Professional Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundWhite,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.dividerGray),
+                  ),
+                  child: Column(
+                    children: [
+                      _ProfileInfoRow(icon: Icons.work, title: 'Job Title', value: _formatValue(user.jobTitle)),
+                      _ProfileInfoRow(icon: Icons.business, title: 'Company', value: _formatValue(user.company)),
+                      if (user.createdAt != null) 
+                        _ProfileInfoRow(icon: Icons.calendar_today, title: 'Member Since', value: _formatDate(user.createdAt!)),
                     ],
                   ),
                 ),
