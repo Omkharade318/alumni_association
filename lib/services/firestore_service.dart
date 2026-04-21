@@ -26,12 +26,17 @@ class FirestoreService {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update(data);
   }
 
-  Stream<List<UserModel>> getAlumniStream({String? branch, String? batch, String? search}) {
+  Stream<List<UserModel>> getAlumniStream({String? branch, String? batch, String? search, String? excludeUserId}) {
     Query query = _firestore.collection(AppConstants.usersCollection);
     if (branch != null && branch.isNotEmpty) query = query.where('branch', isEqualTo: branch);
     if (batch != null && batch.isNotEmpty) query = query.where('batch', isEqualTo: batch);
-    return query.snapshots().map((snapshot) =>
-        snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList());
+    return query.snapshots().map((snapshot) {
+      var users = snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
+      if (excludeUserId != null) {
+        users = users.where((u) => u.uid != excludeUserId).toList();
+      }
+      return users;
+    });
   }
 
   Future<List<UserModel>> searchAlumni({
@@ -39,6 +44,7 @@ class FirestoreService {
     String? branch,
     String? batch,
     String? city,
+    String? excludeUserId,
   }) async {
     Query query = _firestore.collection(AppConstants.usersCollection);
     if (branch != null && branch.isNotEmpty) query = query.where('branch', isEqualTo: branch);
@@ -49,6 +55,9 @@ class FirestoreService {
     var users = snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
     if (name != null && name.isNotEmpty) {
       users = users.where((u) => u.name.toLowerCase().contains(name.toLowerCase())).toList();
+    }
+    if (excludeUserId != null) {
+      users = users.where((u) => u.uid != excludeUserId).toList();
     }
     return users;
   }

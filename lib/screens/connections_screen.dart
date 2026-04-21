@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
@@ -67,7 +69,9 @@ class _ConnectionsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<UserModel>>(
-      stream: FirestoreService().getAlumniStream(),
+      stream: FirestoreService().getAlumniStream(
+        excludeUserId: context.read<AuthProvider>().currentUser?.uid,
+      ),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final connections = snapshot.data!.take(10).toList();

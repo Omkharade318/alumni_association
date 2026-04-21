@@ -16,7 +16,9 @@ class AlumniDirectoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppAppBar(title: 'Alumni Directory', showBack: true),
       body: StreamBuilder<List<UserModel>>(
-        stream: FirestoreService().getAlumniStream(),
+        stream: FirestoreService().getAlumniStream(
+          excludeUserId: context.read<AuthProvider>().currentUser?.uid,
+        ),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());

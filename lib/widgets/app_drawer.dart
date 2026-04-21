@@ -9,6 +9,7 @@ import '../screens/donation_screen.dart';
 import '../screens/messaging_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/admin/admin_gate_screen.dart';
+import '../screens/news_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -34,7 +35,7 @@ class AppDrawer extends StatelessWidget {
                 _drawerItem(Icons.work_outline, 'Job and Mentorship',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JobsScreen()))),
                 _drawerItem(Icons.newspaper, 'News and Updates',
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedScreen()))),
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NewsScreen()))),
                 _drawerItem(Icons.accessibility_new, 'Donate',
                     onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DonationScreen()))),
                 _drawerItem(Icons.chat_bubble_outline, 'Messages',

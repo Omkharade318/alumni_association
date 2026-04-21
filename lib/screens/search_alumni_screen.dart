@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../config/theme.dart';
+import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
@@ -33,11 +35,13 @@ class _SearchAlumniScreenState extends State<SearchAlumniScreen> {
 
   Future<void> _search() async {
     setState(() => _isSearching = true);
+    final currentUser = context.read<AuthProvider>().currentUser;
     final results = await FirestoreService().searchAlumni(
       name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
       branch: _selectedBranch,
       batch: _batchController.text.trim().isEmpty ? null : _batchController.text.trim(),
       city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+      excludeUserId: currentUser?.uid,
     );
     setState(() {
       _results = results;

@@ -109,14 +109,18 @@ class HomeScreen extends StatelessWidget {
               // 1. Alumni Spotlights
               const _SectionTitle(title: 'Alumni Spotlights'),
               const SizedBox(height: 12),
-              _AlumniSpotlightList(stream: firestore.getAlumniStream()),
+              _AlumniSpotlightList(stream: firestore.getAlumniStream(
+                excludeUserId: user?.uid,
+              )),
 
               const SizedBox(height: 24),
 
               // 2. Connect with Batchmates
               const _SectionTitle(title: 'Connect with your Batchmates'),
               const SizedBox(height: 12),
-              _BatchmateList(stream: firestore.getAlumniStream()),
+              _BatchmateList(stream: firestore.getAlumniStream(
+                excludeUserId: user?.uid,
+              )),
 
               const SizedBox(height: 24),
 
