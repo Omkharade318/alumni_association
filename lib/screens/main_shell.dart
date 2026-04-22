@@ -17,6 +17,7 @@ import 'events_calendar_screen.dart';
 import 'profile_screen.dart';
 import 'notifications_screen.dart';
 import 'admin/admin_gate_screen.dart';
+import 'edit_profile_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -54,15 +55,28 @@ class _MainShellState extends State<MainShell> {
       key: _scaffoldKey, // Essential for opening drawer from sub-widgets
       drawer: const AppDrawer(),
 // We only show the "Standard" AppBar for non-home screens
-      appBar: _currentIndex == 0
+              appBar: _currentIndex == 0
           ? null
           : AppBar(
               backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
               title: Text(_getTitle()),
               leading: IconButton(
                 icon: const Icon(Icons.menu),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
+              actions: [
+                if (_currentIndex == 4)
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () {
+                      final user = context.read<AuthProvider>().currentUser;
+                      if (user != null) {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfileScreen(user: user)));
+                      }
+                    },
+                  ),
+              ],
             ),
       body: IndexedStack(
         index: _currentIndex,

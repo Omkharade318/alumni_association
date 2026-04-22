@@ -7,6 +7,7 @@ import '../services/firestore_service.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/app_app_bar.dart';
 import 'messaging_screen.dart';
+import 'edit_profile_screen.dart';
 // Assuming you have ChatScreen imported here
 
 class AlumniDetailScreen extends StatelessWidget {
@@ -16,9 +17,25 @@ class AlumniDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = context.watch<AuthProvider>().currentUser;
+    final isAdmin = currentUser?.isAdmin ?? false;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50, // Subtle off-white background
-      appBar: const AppAppBar(title: 'Alumni Profile', showBack: true),
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppAppBar(
+        title: 'Alumni Profile', 
+        showBack: true,
+        actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EditProfileScreen(user: alumni)),
+              ),
+            ),
+        ],
+      ),
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -60,18 +77,20 @@ class AlumniDetailScreen extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Modern Action Buttons
-                  FutureBuilder<bool>(
-                    future: FirestoreService().isConnected(
+                  FutureBuilder<String?>(
+                    future: FirestoreService().getConnectionStatus(
                       context.read<AuthProvider>().currentUser!.uid,
                       alumni.uid,
                     ),
                     builder: (context, snapshot) {
-                      final isConnected = snapshot.data ?? false;
+                      final status = snapshot.data;
+                      final isConnected = status == 'accepted';
+                      final isPending = status == 'pending';
 
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (!isConnected)
+                          if (status == null)
                             Expanded(
                               child: ElevatedButton.icon(
                                 icon: const Icon(Icons.person_add, size: 20),
@@ -90,8 +109,19 @@ class AlumniDetailScreen extends StatelessWidget {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text('Connection request sent to ${alumni.name}')),
                                     );
+                                    // Refresh UI
+                                    (context as Element).markNeedsBuild();
                                   }
                                 },
+                              ),
+                            )
+                          else if (isPending)
+                            const Expanded(
+                              child: Chip(
+                                label: Text('Request Sent'),
+                                backgroundColor: Colors.amber,
+                                labelStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                avatar: Icon(Icons.hourglass_empty, color: Colors.white, size: 16),
                               ),
                             )
                           else
@@ -110,7 +140,7 @@ class AlumniDetailScreen extends StatelessWidget {
                             onPressed: () async {
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('You can only message connections')),
+                                  SnackBar(content: Text(isPending ? 'Wait for connection approval' : 'You can only message connections')),
                                 );
                                 return;
                               }
@@ -138,7 +168,7 @@ class AlumniDetailScreen extends StatelessWidget {
                             onPressed: () {
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Connect to unlock contact features')),
+                                  SnackBar(content: Text(isPending ? 'Contact features unlock after connecting' : 'Connect to unlock contact features')),
                                 );
                                 return;
                               }

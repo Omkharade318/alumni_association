@@ -44,6 +44,7 @@ class AlumniConnectApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => AuthProvider(),
       child: MaterialApp(
+        navigatorKey: NotificationService.navigatorKey,
         title: 'Alumni Connect',
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,

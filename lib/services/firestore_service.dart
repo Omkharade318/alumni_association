@@ -9,6 +9,7 @@ import '../models/donation_contribution_model.dart';
 import '../models/notification_model.dart';
 import '../models/job_model.dart';
 import '../models/news_model.dart';
+import 'notification_service.dart';
 import '../utils/constants.dart';
 
 class FirestoreService {
@@ -210,6 +211,25 @@ class FirestoreService {
       'lastMessage': message.content,
       'lastMessageAt': FieldValue.serverTimestamp(),
     });
+
+    // Send notification to recipient
+    final conversationDoc = await _firestore.collection(AppConstants.conversationsCollection).doc(conversationId).get();
+    final participants = List<String>.from(conversationDoc['participants']);
+    final recipientId = participants.firstWhere((id) => id != message.senderId);
+    
+    final sender = await getUser(message.senderId);
+    
+    await NotificationService().createNotification(NotificationModel(
+      id: '',
+      userId: recipientId,
+      senderId: message.senderId,
+      senderName: sender?.name ?? 'Someone',
+      title: 'New Message',
+      body: message.content.length > 50 ? '${message.content.substring(0, 47)}...' : message.content,
+      type: NotificationType.message,
+      createdAt: DateTime.now(),
+      relatedId: conversationId,
+    ));
   }
 
   Stream<QuerySnapshot> getConversationsStream(String userId) {
@@ -227,6 +247,28 @@ class FirestoreService {
         .orderBy('createdAt', descending: false)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
+  }
+
+  Future<String?> getConnectionStatus(String userId, String targetUserId) async {
+    final query = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('targetUserId', isEqualTo: targetUserId)
+        .get();
+    
+    if (query.docs.isNotEmpty) {
+      return query.docs.first['status'] as String;
+    }
+
+    final receivedQuery = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: targetUserId)
+        .where('targetUserId', isEqualTo: userId)
+        .get();
+
+    if (receivedQuery.docs.isNotEmpty) {
+      return receivedQuery.docs.first['status'] as String;
+    }
+
+    return null;
   }
 
   Future<bool> isConnected(String userId, String targetUserId) async {
@@ -259,6 +301,20 @@ class FirestoreService {
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    // Send notification to target user
+    final sender = await getUser(userId);
+    await NotificationService().createNotification(NotificationModel(
+      id: '',
+      userId: targetUserId,
+      senderId: userId,
+      senderName: sender?.name ?? 'Someone',
+      title: 'New Connection Request',
+      body: '${sender?.name ?? "Someone"} wants to connect with you.',
+      type: NotificationType.connectionRequest,
+      createdAt: DateTime.now(),
+      relatedId: userId,
+    ));
   }
 
   Future<void> acceptConnection(String connectionId) async {
@@ -324,6 +380,26 @@ class FirestoreService {
         }
       }
       return results;
+    });
+  }
+
+  Stream<List<String>> getConnectedUserIdsStream(String userId) {
+    final sent = _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .snapshots();
+    final received = _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .snapshots();
+
+    return Rx.combineLatest2(sent, received, (QuerySnapshot s, QuerySnapshot r) {
+      final ids = <String>{};
+      for (var doc in s.docs) {
+        ids.add(doc['targetUserId'] as String);
+      }
+      for (var doc in r.docs) {
+        ids.add(doc['userId'] as String);
+      }
+      return ids.toList();
     });
   }
 

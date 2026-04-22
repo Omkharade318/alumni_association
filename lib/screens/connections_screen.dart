@@ -5,9 +5,12 @@ import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
+import 'alumini_details_screen.dart';
+import 'messaging_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
-  const ConnectionsScreen({super.key});
+  final int initialTab;
+  const ConnectionsScreen({super.key, this.initialTab = 0});
 
   @override
   State<ConnectionsScreen> createState() => _ConnectionsScreenState();
@@ -19,7 +22,7 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
   }
 
   @override
@@ -82,30 +85,52 @@ class _ConnectionsList extends StatelessWidget {
           itemCount: connections.length,
           itemBuilder: (_, i) {
             final c = connections[i];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.dividerGray),
+            return InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: c)),
               ),
-              child: Row(
-                children: [
-                  ProfileAvatar(imageUrl: c.profileImage, name: c.name, size: 48),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text(c.displayLocation, style: const TextStyle(fontSize: 12, color: AppTheme.textGray)),
-                      ],
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.dividerGray),
+                ),
+                child: Row(
+                  children: [
+                    ProfileAvatar(imageUrl: c.profileImage, name: c.name, size: 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          Text(c.displayLocation, style: const TextStyle(fontSize: 12, color: AppTheme.textGray)),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(icon: const Icon(Icons.message), onPressed: () {}),
-                  IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
-                ],
+                    IconButton(
+                      icon: const Icon(Icons.message),
+                      onPressed: () async {
+                        final convId = await FirestoreService().getOrCreateConversation(user.uid, c.uid);
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                conversationId: convId,
+                                otherUser: c,
+                                currentUserId: user.uid,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
               ),
             );
           },

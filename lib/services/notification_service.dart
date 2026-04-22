@@ -1,106 +1,158 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../models/notification_model.dart';
+import '../screens/messaging_screen.dart';
+import '../utils/constants.dart';
+import '../screens/connections_screen.dart';
+import '../services/firestore_service.dart';
+
+// Top-level function for background messaging (must be top-level)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print("Handling a background message: ${message.messageId}");
+}
 
 class NotificationService {
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  bool _isInitialized = false;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+
+  // Global navigator key for navigation from background/terminated state
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  // flutter_local_notifications setup
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
+  static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+    'high_importance_channel',
+    'High Importance Notifications',
+    description: 'This channel is used for important notifications.',
+    importance: Importance.high,
+    playSound: true,
+  );
+
+  // ─── Initialization ──────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
-    if (_isInitialized) return;
-    
-    try {
-      // Request permission first
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        announcement: false,
-        badge: true,
-        carPlay: false,
-        criticalAlert: false,
-        provisional: false,
-        sound: true,
-      );
+    // 1. Request permissions
+    await _fcm.requestPermission(alert: true, badge: true, sound: true);
 
-      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-        // Get token with error handling
-        try {
-          final token = await _messaging.getToken();
-          if (token != null && kDebugMode) {
-            print('FCM Token: $token');
-            // TODO: Store token in Firestore for the user when they're logged in
-          }
-        } catch (e) {
-          print('Error getting FCM token: $e');
-          // Continue without FCM token - app should still work
+    // 2. Create Android notification channel for heads-up banners
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_channel);
+
+    // 3. Initialize flutter_local_notifications
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    await _localNotifications.initialize(
+      const InitializationSettings(android: androidInit, iOS: iosInit),
+      onDidReceiveNotificationResponse: (response) {
+        // User tapped a local notification (foreground)
+        final payload = response.payload;
+        if (payload == 'message') {
+          // Can't navigate without context here; handled via FCM data separately
+        } else if (payload == 'connectionRequest') {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(builder: (_) => const ConnectionsScreen(initialTab: 1)),
+          );
         }
-      } else {
-        print('FCM permission denied: ${settings.authorizationStatus}');
-      }
-      
-      _isInitialized = true;
-    } catch (e) {
-      print('Error initializing FCM: $e');
-      // Don't rethrow - app should work without notifications
-      _isInitialized = true;
+      },
+    );
+
+    // 4. Register background message handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // 5. Handle app opened from terminated state via notification
+    final RemoteMessage? initialMessage = await _fcm.getInitialMessage();
+    if (initialMessage != null) {
+      Future.delayed(const Duration(seconds: 1), () => _handleMessage(initialMessage));
     }
   }
 
   void configureHandlers() {
-    if (!_isInitialized) {
-      print('FCM not initialized, skipping handler configuration');
-      return;
-    }
-
-    try {
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        if (kDebugMode) {
-          print('Received foreground message: ${message.messageId}');
-        }
-        // TODO: Show in-app notification
-      });
-
-      // Handle notification tap when app is in background
-      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        if (kDebugMode) {
-          print('Message clicked: ${message.messageId}');
-        }
-        // TODO: Navigate to relevant screen
-      });
-
-      // Handle notification tap when app is completely closed
-      FirebaseMessaging.instance.getInitialMessage().then((RemoteMessage? message) {
-        if (message != null && kDebugMode) {
-          print('App opened from notification: ${message.messageId}');
-        }
-        // TODO: Handle initial notification
-      });
-    } catch (e) {
-      print('Error configuring FCM handlers: $e');
-    }
-  }
-
-  Future<String?> getToken() async {
-    try {
-      if (!_isInitialized) {
-        await initialize();
+    // Foreground: show a local heads-up banner
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final notification = message.notification;
+      if (notification != null) {
+        _showLocalNotification(
+          title: notification.title ?? 'New Notification',
+          body: notification.body ?? '',
+          payload: message.data['type'] ?? '',
+        );
       }
-      return await _messaging.getToken();
-    } catch (e) {
-      print('Error getting FCM token: $e');
-      return null;
+    });
+
+    // Background/open: navigate to the right screen
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+  }
+
+  // ─── Local Banner Notification ────────────────────────────────────────────────
+
+  Future<void> _showLocalNotification({
+    required String title,
+    required String body,
+    String payload = '',
+  }) async {
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000, // unique id
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
+      ),
+      payload: payload,
+    );
+  }
+
+  // ─── Deep-link navigation ─────────────────────────────────────────────────────
+
+  void _handleMessage(RemoteMessage message) async {
+    final type = message.data['type'];
+    final relatedId = message.data['relatedId'];
+    final senderId = message.data['senderId'];
+    final userId = message.data['userId'];
+
+    if (type == 'message' && relatedId != null && senderId != null) {
+      final sender = await FirestoreService().getUser(senderId);
+      if (sender != null) {
+        navigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              conversationId: relatedId,
+              otherUser: sender,
+              currentUserId: userId ?? '',
+            ),
+          ),
+        );
+      }
+    } else if (type == 'connectionRequest') {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const ConnectionsScreen(initialTab: 1)),
+      );
     }
   }
+
+  // ─── FCM Token management ─────────────────────────────────────────────────────
 
   Future<void> storeTokenForUser(String userId) async {
     try {
-      final token = await getToken();
+      final token = await _fcm.getToken();
       if (token != null) {
-        // TODO: Store token in Firestore
-        // await FirebaseFirestore.instance
-        //   .collection('users')
-        //   .doc(userId)
-        //   .update({'fcmToken': token});
-        print('FCM token stored for user: $userId');
+        await _firestore
+            .collection(AppConstants.usersCollection)
+            .doc(userId)
+            .update({'fcmToken': token});
       }
     } catch (e) {
       print('Error storing FCM token: $e');
@@ -109,14 +161,75 @@ class NotificationService {
 
   Future<void> removeTokenForUser(String userId) async {
     try {
-      // TODO: Remove token from Firestore
-      // await FirebaseFirestore.instance
-      //   .collection('users')
-      //   .doc(userId)
-      //   .update({'fcmToken': FieldValue.delete()});
-      print('FCM token removed for user: $userId');
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .update({'fcmToken': FieldValue.delete()});
     } catch (e) {
       print('Error removing FCM token: $e');
+    }
+  }
+
+  // ─── Firestore notification CRUD ─────────────────────────────────────────────
+
+  /// FIX: Removed .orderBy() to avoid requiring a composite Firestore index.
+  /// Documents are sorted client-side after fetching.
+  Stream<List<NotificationModel>> getNotificationsStream(String userId) {
+    return _firestore
+        .collection(AppConstants.notificationsCollection)
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) {
+      final list = snapshot.docs
+          .map((doc) => NotificationModel.fromFirestore(doc))
+          .toList();
+      // Sort newest first client-side
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    });
+  }
+
+  Future<void> createNotification(NotificationModel notification) async {
+    await _firestore
+        .collection(AppConstants.notificationsCollection)
+        .add(notification.toFirestore());
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    await _firestore
+        .collection(AppConstants.notificationsCollection)
+        .doc(notificationId)
+        .update({'isRead': true});
+  }
+
+  // ─── In-app notification tap navigation ──────────────────────────────────────
+
+  void handleNotificationClick(BuildContext context, NotificationModel notification) async {
+    markAsRead(notification.id);
+
+    if (notification.type == NotificationType.message && notification.relatedId != null) {
+      final sender = await FirestoreService().getUser(notification.senderId);
+      if (sender != null && context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              conversationId: notification.relatedId!,
+              otherUser: sender,
+              currentUserId: notification.userId,
+            ),
+          ),
+        );
+      }
+    } else if (notification.type == NotificationType.connectionRequest) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const ConnectionsScreen(initialTab: 1),
+          ),
+        );
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/notification_model.dart';
+import '../services/notification_service.dart';
 import '../widgets/app_app_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -68,7 +69,7 @@ class _NotificationsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<NotificationModel>>(
-      stream: FirestoreService().getNotificationsStream(userId),
+      stream: NotificationService().getNotificationsStream(userId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var notifications = snapshot.data!;
@@ -79,41 +80,44 @@ class _NotificationsList extends StatelessWidget {
           itemCount: notifications.length,
           itemBuilder: (_, i) {
             final n = notifications[i];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: n.isRead ? AppTheme.white : AppTheme.primaryRed.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.dividerGray),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!n.isRead)
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(top: 6),
-                      decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+            return InkWell(
+              onTap: () => NotificationService().handleNotificationClick(context, n),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: n.isRead ? AppTheme.white : AppTheme.primaryRed.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.dividerGray),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!n.isRead)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(top: 6),
+                        decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+                      ),
+                    if (!n.isRead) const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(n.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          Text(n.body, style: const TextStyle(fontSize: 14, color: AppTheme.textGray)),
+                          const SizedBox(height: 4),
+                          Text(
+                            DateFormat('MMM d, h:mm a').format(n.createdAt),
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
+                          ),
+                        ],
+                      ),
                     ),
-                  if (!n.isRead) const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(n.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 4),
-                        Text(n.body, style: const TextStyle(fontSize: 14, color: AppTheme.textGray)),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('MMM d, h:mm a').format(n.createdAt),
-                          style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             );
           },
