@@ -101,7 +101,7 @@ class AdminEventDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               if (event.attendees.isEmpty)
-                const Text('No RSVPs yet')
+                const Text('No Attendees yet')
               else
                 FutureBuilder<List<UserModel?>>(
                   future: _loadAttendeeUsers(context),
@@ -130,10 +130,6 @@ class AdminEventDetailScreen extends StatelessWidget {
                               Icon(Icons.person_outline, color: AppTheme.primaryRed),
                               const SizedBox(width: 12),
                               Expanded(child: Text(label)),
-                              Text(
-                                userId,
-                                style: const TextStyle(fontSize: 12, color: AppTheme.textLight),
-                              ),
                             ],
                           ),
                         );
@@ -143,7 +139,7 @@ class AdminEventDetailScreen extends StatelessWidget {
                 ),
               const SizedBox(height: 24),
               const Text(
-                'Attendee updates happen via the RSVP button in the user-facing Event Detail screen.',
+                'Attendee updates happen via the Attend button in the user-facing Event Detail screen.',
                 style: TextStyle(color: AppTheme.textGray, fontSize: 12),
               ),
             ],

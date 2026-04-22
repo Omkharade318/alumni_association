@@ -156,63 +156,120 @@ class EventDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final firestore = FirestoreService();
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppTheme.primaryRed,
         foregroundColor: AppTheme.white,
-        title: const Text('Event Calendar'),
+        title: const Text('Event Details'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (event.imageUrl != null)
-              Image.network(event.imageUrl!, height: 200, fit: BoxFit.cover)
-            else
-              Container(
-                height: 200,
-                color: AppTheme.primaryRed.withOpacity(0.2),
-                child: Center(
-                  child: Icon(Icons.event, size: 80, color: AppTheme.primaryRed.withOpacity(0.5)),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(event.description),
-                  const SizedBox(height: 24),
-                  _InfoRow(icon: Icons.calendar_today, text: DateFormat('MMMM d, yyyy').format(event.date)),
-                  _InfoRow(icon: Icons.access_time, text: event.time),
-                  _InfoRow(icon: Icons.location_on, text: event.location),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (context.read<AuthProvider>().currentUser != null) {
-                          FirestoreService().rsvpEvent(event.id, context.read<AuthProvider>().currentUser!.uid, true);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('RSVP sent!')));
-                        }
-                      },
-                      child: const Text('RSVP'),
+      body: StreamBuilder<EventModel?>(
+        stream: firestore.getEventStream(event.id),
+        initialData: event,
+        builder: (context, snapshot) {
+          final currentEvent = snapshot.data ?? event;
+          final isAttending = user != null && currentEvent.attendees.contains(user.uid);
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (currentEvent.imageUrl != null)
+                  Image.network(currentEvent.imageUrl!, height: 250, fit: BoxFit.cover)
+                else
+                  Container(
+                    height: 200,
+                    color: AppTheme.primaryRed.withOpacity(0.2),
+                    child: Center(
+                      child: Icon(Icons.event, size: 80, color: AppTheme.primaryRed.withOpacity(0.5)),
                     ),
                   ),
-                ],
-              ),
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              currentEvent.title,
+                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryRed.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${currentEvent.attendees.length} attending',
+                              style: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        currentEvent.description,
+                        style: const TextStyle(fontSize: 15, height: 1.5, color: AppTheme.textDark),
+                      ),
+                      const SizedBox(height: 24),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      _InfoRow(icon: Icons.calendar_today, text: DateFormat('EEEE, MMMM d, yyyy').format(currentEvent.date)),
+                      _InfoRow(icon: Icons.access_time, text: currentEvent.time),
+                      _InfoRow(icon: Icons.location_on, text: currentEvent.location),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isAttending ? Colors.green : AppTheme.primaryRed,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: user == null
+                              ? null
+                              : () async {
+                                  final newStatus = !isAttending;
+                                  await firestore.rsvpEvent(currentEvent.id, user.uid, newStatus);
+                                  
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(newStatus 
+                                          ? 'You are now attending this event!' 
+                                          : 'You have cancelled your attendance.'),
+                                        behavior: SnackBarBehavior.floating,
+                                        backgroundColor: newStatus ? Colors.green : Colors.black87,
+                                      ),
+                                    );
+                                  }
+                                },
+                          child: Text(
+                            isAttending ? 'Attending' : 'Attend',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

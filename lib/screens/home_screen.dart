@@ -110,7 +110,7 @@ class HomeScreen extends StatelessWidget {
               const _SectionTitle(title: 'Alumni Spotlights'),
               const SizedBox(height: 12),
               _AlumniSpotlightList(stream: firestore.getAlumniStream(
-                excludeUserId: user?.uid,
+                excludeUserIds: user?.uid != null ? [user!.uid] : null,
               )),
 
               const SizedBox(height: 24),
@@ -118,9 +118,26 @@ class HomeScreen extends StatelessWidget {
               // 2. Connect with Batchmates
               const _SectionTitle(title: 'Connect with your Batchmates'),
               const SizedBox(height: 12),
-              _BatchmateList(stream: firestore.getAlumniStream(
-                excludeUserId: user?.uid,
-              )),
+              if (user != null)
+                FutureBuilder<List<String>>(
+                  future: firestore.getAllConnectedUserIds(user.uid),
+                  builder: (context, idSnapshot) {
+                    if (idSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final excludedIds = idSnapshot.data ?? [];
+                    excludedIds.add(user.uid);
+
+                    return _BatchmateList(stream: firestore.getAlumniStream(
+                      branch: user.branch,
+                      batch: user.batch,
+                      degree: user.degree,
+                      excludeUserIds: excludedIds,
+                    ));
+                  }
+                )
+              else
+                const Center(child: Text('Log in to see your batchmates')),
 
               const SizedBox(height: 24),
 

@@ -68,16 +68,16 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
 class _ConnectionsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user == null) return const Center(child: Text('Please log in'));
+
     return StreamBuilder<List<UserModel>>(
-      stream: FirestoreService().getAlumniStream(
-        excludeUserId: context.read<AuthProvider>().currentUser?.uid,
-      ),
+      stream: FirestoreService().getAcceptedConnectionsStream(user.uid),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final connections = snapshot.data!.take(10).toList();
+        final connections = snapshot.data!;
         if (connections.isEmpty) return const Center(child: Text('No connections yet'));
         return ListView.builder(
-          // Adjusted padding to give a little breathing room below the tabs
           padding: const EdgeInsets.all(16),
           itemCount: connections.length,
           itemBuilder: (_, i) {
@@ -118,6 +118,64 @@ class _ConnectionsList extends StatelessWidget {
 class _PendingRequestsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('Pending connection requests will appear here'));
+    final user = context.watch<AuthProvider>().currentUser;
+    if (user == null) return const Center(child: Text('Please log in'));
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: FirestoreService().getPendingRequestsStream(user.uid),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final requests = snapshot.data!;
+        if (requests.isEmpty) return const Center(child: Text('No pending requests'));
+        
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: requests.length,
+          itemBuilder: (_, i) {
+            final req = requests[i];
+            final sender = req['user'] as UserModel;
+            final connId = req['connectionId'] as String;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.dividerGray),
+              ),
+              child: Row(
+                children: [
+                  ProfileAvatar(imageUrl: sender.profileImage, name: sender.name, size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(sender.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(sender.displayLocation, style: const TextStyle(fontSize: 12, color: AppTheme.textGray)),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check_circle, color: Colors.green),
+                        onPressed: () => FirestoreService().acceptConnection(connId),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.red),
+                        onPressed: () => FirestoreService().rejectConnection(connId),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

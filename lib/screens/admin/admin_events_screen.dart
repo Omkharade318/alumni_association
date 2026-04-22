@@ -137,7 +137,7 @@ class _EventRow extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Chip(
-                    label: Text('${event.attendees.length} RSVPs'),
+                    label: Text('${event.attendees.length} Attendees'),
                   ),
                 ],
               ),

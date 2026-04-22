@@ -288,15 +288,21 @@ class _PostCard extends StatelessWidget {
                       post.userName,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                     ),
-                    if (post.userJobTitle != null)
-                      Text(
-                        post.userJobTitle!,
-                        style: const TextStyle(fontSize: 13, color: AppTheme.textGray),
-                      ),
-                    Text(
-                      '${post.userDegree ?? "Alumni"}${post.userBranch != null ? "(${post.userBranch})" : ""} ${post.userBatch ?? ""}',
-                      style: const TextStyle(fontSize: 13, color: AppTheme.textGray),
+
+                    Row(
+                      children: [
+                        if (post.userJobTitle != null)
+                          Text(
+                            post.userJobTitle!,
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                          ),
+                          Text(
+                            ' ${post.userDegree ?? "Alumni"}${post.userBranch != null ? "(${post.userBranch})" : ""} ${post.userBatch ?? ""}',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.textGray),
+                          ),
+                      ]
                     ),
+
                     Text(
                       _formatDate(post.createdAt),
                       style: const TextStyle(fontSize: 12, color: AppTheme.textGray),

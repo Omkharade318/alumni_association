@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rxdart/rxdart.dart';
 import '../models/user_model.dart';
 import '../models/post_model.dart';
 import '../models/event_model.dart';
@@ -26,14 +27,15 @@ class FirestoreService {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update(data);
   }
 
-  Stream<List<UserModel>> getAlumniStream({String? branch, String? batch, String? search, String? excludeUserId}) {
+  Stream<List<UserModel>> getAlumniStream({String? branch, String? batch, String? degree, String? search, List<String>? excludeUserIds}) {
     Query query = _firestore.collection(AppConstants.usersCollection);
     if (branch != null && branch.isNotEmpty) query = query.where('branch', isEqualTo: branch);
     if (batch != null && batch.isNotEmpty) query = query.where('batch', isEqualTo: batch);
+    if (degree != null && degree.isNotEmpty) query = query.where('degree', isEqualTo: degree);
     return query.snapshots().map((snapshot) {
       var users = snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
-      if (excludeUserId != null) {
-        users = users.where((u) => u.uid != excludeUserId).toList();
+      if (excludeUserIds != null && excludeUserIds.isNotEmpty) {
+        users = users.where((u) => !excludeUserIds.contains(u.uid)).toList();
       }
       return users;
     });
@@ -44,7 +46,7 @@ class FirestoreService {
     String? branch,
     String? batch,
     String? city,
-    String? excludeUserId,
+    List<String>? excludeUserIds,
   }) async {
     Query query = _firestore.collection(AppConstants.usersCollection);
     if (branch != null && branch.isNotEmpty) query = query.where('branch', isEqualTo: branch);
@@ -56,8 +58,8 @@ class FirestoreService {
     if (name != null && name.isNotEmpty) {
       users = users.where((u) => u.name.toLowerCase().contains(name.toLowerCase())).toList();
     }
-    if (excludeUserId != null) {
-      users = users.where((u) => u.uid != excludeUserId).toList();
+    if (excludeUserIds != null && excludeUserIds.isNotEmpty) {
+      users = users.where((u) => !excludeUserIds.contains(u.uid)).toList();
     }
     return users;
   }
@@ -97,6 +99,14 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await addComment(postId);
+  }
+
+  Stream<EventModel?> getEventStream(String eventId) {
+    return _firestore
+        .collection(AppConstants.eventsCollection)
+        .doc(eventId)
+        .snapshots()
+        .map((doc) => doc.exists ? EventModel.fromFirestore(doc) : null);
   }
 
   Stream<List<EventModel>> getEventsStream() {
@@ -219,13 +229,120 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
   }
 
+  Future<bool> isConnected(String userId, String targetUserId) async {
+    final sent = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('targetUserId', isEqualTo: targetUserId)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+    if (sent.docs.isNotEmpty) return true;
+
+    final received = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: targetUserId)
+        .where('targetUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'accepted')
+        .get();
+    return received.docs.isNotEmpty;
+  }
+
   Future<void> addConnection(String userId, String targetUserId) async {
+    // Check if connection already exists
+    final query = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('targetUserId', isEqualTo: targetUserId)
+        .get();
+    if (query.docs.isNotEmpty) return;
+
     await _firestore.collection(AppConstants.connectionsCollection).add({
       'userId': userId,
       'targetUserId': targetUserId,
       'status': 'pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> acceptConnection(String connectionId) async {
+    await _firestore.collection(AppConstants.connectionsCollection).doc(connectionId).update({
+      'status': 'accepted',
+    });
+  }
+
+  Future<void> rejectConnection(String connectionId) async {
+    await _firestore.collection(AppConstants.connectionsCollection).doc(connectionId).delete();
+  }
+
+  Stream<List<UserModel>> getAcceptedConnectionsStream(String userId) {
+    // We need to check both userId and targetUserId where status is accepted
+    final sentQuery = _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots();
+
+    final receivedQuery = _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots();
+
+    // Combine both streams
+    return Rx.combineLatest2<QuerySnapshot, QuerySnapshot, List<String>>(
+      sentQuery,
+      receivedQuery,
+      (sent, received) {
+        final ids = <String>[];
+        for (var doc in sent.docs) {
+          ids.add(doc['targetUserId']);
+        }
+        for (var doc in received.docs) {
+          ids.add(doc['userId']);
+        }
+        return ids;
+      },
+    ).asyncMap((ids) async {
+      if (ids.isEmpty) return [];
+      final userDocs = await _firestore.collection(AppConstants.usersCollection)
+          .where(FieldPath.documentId, whereIn: ids)
+          .get();
+      return userDocs.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> getPendingRequestsStream(String userId) {
+    // Requests received by the user
+    return _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .asyncMap((snapshot) async {
+      final results = <Map<String, dynamic>>[];
+      for (var doc in snapshot.docs) {
+        final userDoc = await _firestore.collection(AppConstants.usersCollection).doc(doc['userId']).get();
+        if (userDoc.exists) {
+          results.add({
+            'connectionId': doc.id,
+            'user': UserModel.fromFirestore(userDoc),
+          });
+        }
+      }
+      return results;
+    });
+  }
+
+  Future<List<String>> getAllConnectedUserIds(String userId) async {
+    final sent = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .get();
+    final received = await _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .get();
+
+    final ids = <String>[];
+    for (var doc in sent.docs) {
+      ids.add(doc['targetUserId']);
+    }
+    for (var doc in received.docs) {
+      ids.add(doc['userId']);
+    }
+    return ids;
   }
 
   Stream<List<NotificationModel>> getNotificationsStream(String userId) {

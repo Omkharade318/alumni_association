@@ -8,7 +8,7 @@ import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_text_field.dart';
-import 'alumni_directory_screen.dart';
+import 'alumini_details_screen.dart';
 
 class SearchAlumniScreen extends StatefulWidget {
   const SearchAlumniScreen({super.key});
@@ -36,12 +36,17 @@ class _SearchAlumniScreenState extends State<SearchAlumniScreen> {
   Future<void> _search() async {
     setState(() => _isSearching = true);
     final currentUser = context.read<AuthProvider>().currentUser;
+    if (currentUser == null) return;
+
+    final excludedIds = await FirestoreService().getAllConnectedUserIds(currentUser.uid);
+    excludedIds.add(currentUser.uid);
+
     final results = await FirestoreService().searchAlumni(
       name: _nameController.text.trim().isEmpty ? null : _nameController.text.trim(),
       branch: _selectedBranch,
       batch: _batchController.text.trim().isEmpty ? null : _batchController.text.trim(),
       city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      excludeUserId: currentUser?.uid,
+      excludeUserIds: excludedIds,
     );
     setState(() {
       _results = results;
