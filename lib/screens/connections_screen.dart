@@ -68,74 +68,135 @@ class _ConnectionsScreenState extends State<ConnectionsScreen> with SingleTicker
   }
 }
 
-class _ConnectionsList extends StatelessWidget {
+class _ConnectionsList extends StatefulWidget {
+  @override
+  State<_ConnectionsList> createState() => _ConnectionsListState();
+}
+
+class _ConnectionsListState extends State<_ConnectionsList> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
     if (user == null) return const Center(child: Text('Please log in'));
 
-    return StreamBuilder<List<UserModel>>(
-      stream: FirestoreService().getAcceptedConnectionsStream(user.uid),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final connections = snapshot.data!;
-        if (connections.isEmpty) return const Center(child: Text('No connections yet'));
-        return ListView.builder(
+    return Column(
+      children: [
+        Padding(
           padding: const EdgeInsets.all(16),
-          itemCount: connections.length,
-          itemBuilder: (_, i) {
-            final c = connections[i];
-            return InkWell(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: c)),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+            decoration: InputDecoration(
+              hintText: 'Search connections...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
               ),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.dividerGray),
-                ),
-                child: Row(
-                  children: [
-                    ProfileAvatar(imageUrl: c.profileImage, name: c.name, size: 48),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<UserModel>>(
+            stream: FirestoreService().getAcceptedConnectionsStream(user.uid),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              
+              var connections = snapshot.data!;
+              if (_searchQuery.isNotEmpty) {
+                connections = connections.where((c) => 
+                  c.name.toLowerCase().contains(_searchQuery) ||
+                  c.branch!.toLowerCase().contains(_searchQuery)
+                ).toList();
+              }
+
+              if (connections.isEmpty) {
+                return Center(
+                  child: Text(_searchQuery.isEmpty 
+                    ? 'No connections yet' 
+                    : 'No connections match your search'),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: connections.length,
+                itemBuilder: (_, i) {
+                  final c = connections[i];
+                  return InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: c)),
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.dividerGray),
+                      ),
+                      child: Row(
                         children: [
-                          Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          Text(c.displayLocation, style: const TextStyle(fontSize: 12, color: AppTheme.textGray)),
+                          ProfileAvatar(imageUrl: c.profileImage, name: c.name, size: 48),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(c.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                Text(c.displayLocation, style: const TextStyle(fontSize: 12, color: AppTheme.textGray)),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.message),
+                            onPressed: () async {
+                              final convId = await FirestoreService().getOrCreateConversation(user.uid, c.uid);
+                              if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ChatScreen(
+                                      conversationId: convId,
+                                      otherUser: c,
+                                      currentUserId: user.uid,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.message),
-                      onPressed: () async {
-                        final convId = await FirestoreService().getOrCreateConversation(user.uid, c.uid);
-                        if (context.mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                conversationId: convId,
-                                otherUser: c,
-                                currentUserId: user.uid,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

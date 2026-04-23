@@ -26,18 +26,29 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'high_importance_channel',
+    'high_importance_channel_v4', // Changed ID to force update
     'High Importance Notifications',
     description: 'This channel is used for important notifications.',
-    importance: Importance.high,
+    importance: Importance.max, // MAX for heads-up
     playSound: true,
+    enableVibration: true,
   );
 
   // ─── Initialization ──────────────────────────────────────────────────────────
 
   Future<void> initialize() async {
-    // 1. Request permissions
-    await _fcm.requestPermission(alert: true, badge: true, sound: true);
+    // 1. Request permissions (including Android 13+)
+    await _fcm.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+    );
+    
+    // Explicitly request for Android 13+ if using newer flutter_local_notifications
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
 
     // 2. Create Android notification channel for heads-up banners
     await _localNotifications
@@ -45,7 +56,7 @@ class NotificationService {
         ?.createNotificationChannel(_channel);
 
     // 3. Initialize flutter_local_notifications
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('ic_notification');
     const iosInit = DarwinInitializationSettings();
     await _localNotifications.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
@@ -65,6 +76,13 @@ class NotificationService {
     // 4. Register background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+    // Also tell FCM to show heads-up natively if payload contains a notification block (mainly for iOS, but good practice)
+    await _fcm.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     // 5. Handle app opened from terminated state via notification
     final RemoteMessage? initialMessage = await _fcm.getInitialMessage();
     if (initialMessage != null) {
@@ -74,14 +92,39 @@ class NotificationService {
 
   void configureHandlers() {
     // Foreground: show a local heads-up banner
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       final notification = message.notification;
-      if (notification != null) {
-        _showLocalNotification(
-          title: notification.title ?? 'New Notification',
-          body: notification.body ?? '',
-          payload: message.data['type'] ?? '',
-        );
+      
+      // Extract from notification block, fallback to data payload
+      final title = notification?.title ?? message.data['title'] ?? 'New Notification';
+      final body = notification?.body ?? message.data['body'] ?? 'You have a new message';
+      final type = message.data['type'] ?? 'message';
+      final relatedId = message.data['relatedId'];
+      final senderId = message.data['senderId'] ?? '';
+      final senderName = message.data['senderName'] ?? 'Someone';
+      final userId = message.data['userId'] ?? '';
+
+      // 1. Show local banner
+      _showLocalNotification(
+        title: title,
+        body: body,
+        payload: type,
+      );
+
+      // 2. Save to Firestore (fallback in case sender didn't/couldn't save it)
+      // Only do this if we have a userId
+      if (userId.isNotEmpty) {
+        await createNotification(NotificationModel(
+          id: '',
+          userId: userId,
+          senderId: senderId,
+          senderName: senderName,
+          title: title,
+          body: body,
+          type: type == 'connectionRequest' ? NotificationType.connectionRequest : NotificationType.message,
+          createdAt: DateTime.now(),
+          relatedId: relatedId,
+        ));
       }
     });
 
@@ -105,9 +148,10 @@ class NotificationService {
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
+          importance: Importance.max,
+          priority: Priority.max,
+          visibility: NotificationVisibility.public,
+          fullScreenIntent: true, // Helps with showing as a banner
         ),
         iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true),
       ),
@@ -200,6 +244,15 @@ class NotificationService {
         .collection(AppConstants.notificationsCollection)
         .doc(notificationId)
         .update({'isRead': true});
+  }
+
+  Stream<int> getUnreadNotificationCountStream(String userId) {
+    return _firestore
+        .collection(AppConstants.notificationsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
   }
 
   // ─── In-app notification tap navigation ──────────────────────────────────────

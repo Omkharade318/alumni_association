@@ -28,7 +28,14 @@ class FirestoreService {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update(data);
   }
 
-  Stream<List<UserModel>> getAlumniStream({String? branch, String? batch, String? degree, String? search, List<String>? excludeUserIds}) {
+  Stream<List<UserModel>> getAlumniStream({
+    String? branch,
+    String? batch,
+    String? degree,
+    String? search,
+    List<String>? excludeUserIds,
+    List<String>? includeUserIds,
+  }) {
     Query query = _firestore.collection(AppConstants.usersCollection);
     if (branch != null && branch.isNotEmpty) query = query.where('branch', isEqualTo: branch);
     if (batch != null && batch.isNotEmpty) query = query.where('batch', isEqualTo: batch);
@@ -37,6 +44,9 @@ class FirestoreService {
       var users = snapshot.docs.map((doc) => UserModel.fromFirestore(doc)).toList();
       if (excludeUserIds != null && excludeUserIds.isNotEmpty) {
         users = users.where((u) => !excludeUserIds.contains(u.uid)).toList();
+      }
+      if (includeUserIds != null) {
+        users = users.where((u) => includeUserIds.contains(u.uid)).toList();
       }
       return users;
     });
@@ -403,6 +413,44 @@ class FirestoreService {
     });
   }
 
+  /// Returns only user IDs with accepted (confirmed) connections.
+  Stream<List<String>> getAcceptedConnectionIdsStream(String userId) {
+    final sent = _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots();
+    final received = _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots();
+
+    return Rx.combineLatest2(sent, received, (QuerySnapshot s, QuerySnapshot r) {
+      final ids = <String>{};
+      for (var doc in s.docs) ids.add(doc['targetUserId'] as String);
+      for (var doc in r.docs) ids.add(doc['userId'] as String);
+      return ids.toList();
+    });
+  }
+
+  /// Returns only user IDs with pending (not yet accepted) connection requests.
+  Stream<List<String>> getPendingConnectionIdsStream(String userId) {
+    final sent = _firestore.collection(AppConstants.connectionsCollection)
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+    final received = _firestore.collection(AppConstants.connectionsCollection)
+        .where('targetUserId', isEqualTo: userId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots();
+
+    return Rx.combineLatest2(sent, received, (QuerySnapshot s, QuerySnapshot r) {
+      final ids = <String>{};
+      for (var doc in s.docs) ids.add(doc['targetUserId'] as String);
+      for (var doc in r.docs) ids.add(doc['userId'] as String);
+      return ids.toList();
+    });
+  }
+
   Future<List<String>> getAllConnectedUserIds(String userId) async {
     final sent = await _firestore.collection(AppConstants.connectionsCollection)
         .where('userId', isEqualTo: userId)
@@ -421,14 +469,7 @@ class FirestoreService {
     return ids;
   }
 
-  Stream<List<NotificationModel>> getNotificationsStream(String userId) {
-    return _firestore
-        .collection(AppConstants.notificationsCollection)
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => NotificationModel.fromFirestore(doc)).toList());
-  }
+
 
   Stream<List<JobModel>> getJobsStream() {
     return _firestore

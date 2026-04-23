@@ -2,11 +2,13 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <application
         android:label="Alumni Connect"
-        android:name="${applicationName}"
-
-        >
+        android:name="${applicationName}">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -26,5 +28,6 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="high_importance_channel_v4"/>
     </application>
 </manifest>

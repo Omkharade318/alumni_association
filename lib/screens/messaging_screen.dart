@@ -9,69 +9,74 @@ import '../widgets/profile_avatar.dart';
 import '../widgets/app_app_bar.dart';
 
 class MessagingScreen extends StatelessWidget {
-  const MessagingScreen({super.key});
+  final bool hideAppBar;
+  const MessagingScreen({super.key, this.hideAppBar = false});
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    if (user == null) return const Scaffold(body: Center(child: Text('Please sign in')));
+    if (user == null) return const Center(child: Text('Please sign in'));
+
+    Widget body = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search messages',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder(
+            stream: FirestoreService().getConversationsStream(user.uid),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final docs = snapshot.data!.docs;
+              if (docs.isEmpty) return const Center(child: Text('No conversations yet'));
+              return ListView.builder(
+                itemCount: docs.length,
+                itemBuilder: (_, i) {
+                  final data = docs[i].data() as Map<String, dynamic>;
+                  final participants = data['participants'] as List<dynamic>? ?? [];
+                  final otherId = participants.firstWhere((p) => p != user.uid, orElse: () => '');
+                  return FutureBuilder<UserModel?>(
+                    future: FirestoreService().getUser(otherId.toString()),
+                    builder: (ctx, userSnap) {
+                      if (!userSnap.hasData) return const SizedBox.shrink();
+                      final other = userSnap.data!;
+                      return ListTile(
+                        leading: ProfileAvatar(imageUrl: other.profileImage, name: other.name, size: 48),
+                        title: Text(other.name),
+                        subtitle: Text(data['lastMessage'] ?? 'No messages yet'),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              conversationId: docs[i].id,
+                              otherUser: other,
+                              currentUserId: user.uid,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (hideAppBar) return body;
 
     return Scaffold(
       appBar: AppAppBar(title: 'Messages', showBack: true),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search messages',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder(
-              stream: FirestoreService().getConversationsStream(user.uid),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final docs = snapshot.data!.docs;
-                if (docs.isEmpty) return const Center(child: Text('No conversations yet'));
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (_, i) {
-                    final data = docs[i].data() as Map<String, dynamic>;
-                    final participants = data['participants'] as List<dynamic>? ?? [];
-                    final otherId = participants.firstWhere((p) => p != user.uid, orElse: () => '');
-                    return FutureBuilder<UserModel?>(
-                      future: FirestoreService().getUser(otherId.toString()),
-                      builder: (ctx, userSnap) {
-                        if (!userSnap.hasData) return const SizedBox.shrink();
-                        final other = userSnap.data!;
-                        return ListTile(
-                          leading: ProfileAvatar(imageUrl: other.profileImage, name: other.name, size: 48),
-                          title: Text(other.name),
-                          subtitle: Text(data['lastMessage'] ?? 'No messages yet'),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                conversationId: docs[i].id,
-                                otherUser: other,
-                                currentUserId: user.uid,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+      body: body,
     );
   }
 }

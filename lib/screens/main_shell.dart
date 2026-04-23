@@ -46,7 +46,7 @@ class _MainShellState extends State<MainShell> {
 // Pass the scaffold key function so the Home menu button works
       HomeScreen(onMenuTap: () => _scaffoldKey.currentState?.openDrawer()),
       const FeedScreen(),
-      const SearchAlumniScreen(),
+      const MessagingScreen(hideAppBar: true),
       const EventsCalendarScreen(),
       const ProfileScreen(),
     ];
@@ -92,7 +92,7 @@ class _MainShellState extends State<MainShell> {
       case 1:
         return 'Feed';
       case 2:
-        return 'Search';
+        return 'Messages';
       case 3:
         return 'Events';
       case 4:

@@ -71,6 +71,7 @@ class _NotificationsList extends StatelessWidget {
     return StreamBuilder<List<NotificationModel>>(
       stream: NotificationService().getNotificationsStream(userId),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         var notifications = snapshot.data!;
         if (unreadOnly) notifications = notifications.where((n) => !n.isRead).toList();

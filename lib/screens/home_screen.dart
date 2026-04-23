@@ -2,13 +2,14 @@ import 'package:alumni_connect/screens/notifications_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart'; // Added for date formatting
-import '../config/theme.dart';
+import 'package:intl/intl.dart';
+import 'package:rxdart/rxdart.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../models/event_model.dart';
 import '../models/news_model.dart';
+import '../services/notification_service.dart';
 import '../widgets/profile_avatar.dart';
 import 'alumini_details_screen.dart';
 import 'connections_screen.dart';
@@ -47,7 +48,7 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppColors.backgroundLight,
-      appBar: _buildAppBar(context),
+      appBar: _buildAppBar(context, user),
       body: RefreshIndicator(
         color: AppColors.primaryMaroon,
         backgroundColor: Colors.white,
@@ -115,37 +116,58 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // 1. Alumni Spotlights
-              const _SectionTitle(title: 'Spotlight', icon: Icons.auto_awesome),
-              const SizedBox(height: 16),
-              _AlumniSpotlightList(
-                stream: firestore.getAlumniStream(excludeUserIds: user?.uid != null ? [user!.uid] : null),
-              ),
-
-              const SizedBox(height: 32),
-
-              // 2. Connect with Batchmates
-              const _SectionTitle(title: 'Connect with Batchmates', icon: Icons.people_alt_outlined),
+              // 1. Alumni Spotlights — show only accepted connections
+              const _SectionTitle(title: 'My Connections', icon: Icons.auto_awesome),
               const SizedBox(height: 16),
               if (user != null)
                 StreamBuilder<List<String>>(
-                  stream: firestore.getConnectedUserIdsStream(user.uid),
+                  stream: firestore.getAcceptedConnectionIdsStream(user.uid),
+                  builder: (context, snap) {
+                    final acceptedIds = snap.data ?? [];
+                    if (acceptedIds.isEmpty) {
+                      return const SizedBox(
+                        height: 100,
+                        child: Center(child: Text('Connect with alumni to see them here', style: TextStyle(color: Colors.grey))),
+                      );
+                    }
+                    return _AlumniSpotlightList(
+                      stream: firestore.getAlumniStream(includeUserIds: acceptedIds),
+                    );
+                  },
+                )
+              else
+                const SizedBox(height: 100, child: Center(child: Text('Log in', style: TextStyle(color: Colors.grey)))),
+
+              const SizedBox(height: 32),
+
+              // 2. Connect with Batchmates — hide accepted, show pending with "Request Sent"
+              const _SectionTitle(title: 'Connect with Batchmates', icon: Icons.people_alt_outlined),
+              const SizedBox(height: 16),
+              if (user != null)
+                StreamBuilder<List<List<String>>>(
+                  stream: Rx.combineLatest2(
+                    firestore.getAcceptedConnectionIdsStream(user.uid),
+                    firestore.getPendingConnectionIdsStream(user.uid),
+                    (List<String> accepted, List<String> pending) => [accepted, pending],
+                  ),
                   builder: (context, idSnapshot) {
                     if (idSnapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
                     }
-                    final excludedIds = idSnapshot.data ?? [];
-                    // Add current user to exclusions for the stream query
-                    final streamExclusions = [user.uid]; 
+                    final acceptedIds = idSnapshot.data?[0] ?? [];
+                    final pendingIds  = idSnapshot.data?[1] ?? [];
+
+                    // Exclude self + accepted connections from the Firestore query
+                    final queryExclusions = [user.uid, ...acceptedIds];
 
                     return _BatchmateList(
                       stream: firestore.getAlumniStream(
                         branch: user.branch,
                         batch: user.batch,
                         degree: user.degree,
-                        excludeUserIds: streamExclusions, // Only exclude self here
+                        excludeUserIds: queryExclusions,
                       ),
-                      excludedIds: excludedIds,
+                      excludedIds: pendingIds, // only used for "Request Sent" button state
                     );
                   },
                 )
@@ -174,7 +196,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, UserModel? user) {
     return AppBar(
       backgroundColor: AppColors.backgroundLight,
       surfaceTintColor: Colors.transparent,
@@ -192,11 +214,46 @@ class HomeScreen extends StatelessWidget {
       ),
       centerTitle: true,
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 26),
-          onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
-          }, // Add notification logic if needed
+        StreamBuilder<int>(
+          stream: NotificationService().getUnreadNotificationCountStream(user?.uid ?? ''),
+          builder: (context, snapshot) {
+            final count = snapshot.data ?? 0;
+            return Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_none_rounded, color: Colors.black87, size: 26),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                  },
+                ),
+                if (count > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         IconButton(
           icon: const Icon(Icons.group_outlined, color: Colors.black87, size: 26),
