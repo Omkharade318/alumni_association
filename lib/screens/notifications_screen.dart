@@ -8,27 +8,8 @@ import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 import '../widgets/app_app_bar.dart';
 
-class NotificationsScreen extends StatefulWidget {
+class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
-
-  @override
-  State<NotificationsScreen> createState() => _NotificationsScreenState();
-}
-
-class _NotificationsScreenState extends State<NotificationsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,34 +18,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> with SingleTi
 
     return Scaffold(
       appBar: AppAppBar(title: 'Notifications', showBack: true),
-      body: Column(
-        children: [
-          TabBar(
-            controller: _tabController,
-            labelColor: AppTheme.primaryRed,
-            unselectedLabelColor: AppTheme.textGray,
-            tabs: const [Tab(text: 'All'), Tab(text: 'Unread')],
-          ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _NotificationsList(userId: user.uid, unreadOnly: false),
-                _NotificationsList(userId: user.uid, unreadOnly: true),
-              ],
-            ),
-          ),
-        ],
-      ),
+      body: _NotificationsList(userId: user.uid),
     );
   }
 }
 
 class _NotificationsList extends StatelessWidget {
   final String userId;
-  final bool unreadOnly;
 
-  const _NotificationsList({required this.userId, required this.unreadOnly});
+  const _NotificationsList({required this.userId});
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +35,7 @@ class _NotificationsList extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        var notifications = snapshot.data!;
-        if (unreadOnly) notifications = notifications.where((n) => !n.isRead).toList();
+        final notifications = snapshot.data!;
         if (notifications.isEmpty) return const Center(child: Text('No notifications'));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -87,21 +48,20 @@ class _NotificationsList extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: n.isRead ? AppTheme.white : AppTheme.primaryRed.withOpacity(0.05),
+                  color: AppTheme.primaryRed.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppTheme.dividerGray),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!n.isRead)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(top: 6),
-                        decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
-                      ),
-                    if (!n.isRead) const SizedBox(width: 8),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/notification_model.dart';
+import '../screens/chat_screen.dart';
 import '../screens/messaging_screen.dart';
 import '../utils/constants.dart';
 import '../screens/connections_screen.dart';
@@ -246,6 +247,13 @@ class NotificationService {
         .update({'isRead': true});
   }
 
+  Future<void> deleteNotification(String notificationId) async {
+    await _firestore
+        .collection(AppConstants.notificationsCollection)
+        .doc(notificationId)
+        .delete();
+  }
+
   Stream<int> getUnreadNotificationCountStream(String userId) {
     return _firestore
         .collection(AppConstants.notificationsCollection)
@@ -258,7 +266,7 @@ class NotificationService {
   // ─── In-app notification tap navigation ──────────────────────────────────────
 
   void handleNotificationClick(BuildContext context, NotificationModel notification) async {
-    markAsRead(notification.id);
+    deleteNotification(notification.id);
 
     if (notification.type == NotificationType.message && notification.relatedId != null) {
       final sender = await FirestoreService().getUser(notification.senderId);

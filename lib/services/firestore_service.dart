@@ -207,6 +207,10 @@ class FirestoreService {
       'participants': participants,
       'lastMessage': '',
       'lastMessageAt': FieldValue.serverTimestamp(),
+      'unreadCounts': {
+        user1: 0,
+        user2: 0,
+      },
     });
     return docRef.id;
   }
@@ -220,6 +224,7 @@ class FirestoreService {
     await _firestore.collection(AppConstants.conversationsCollection).doc(conversationId).update({
       'lastMessage': message.content,
       'lastMessageAt': FieldValue.serverTimestamp(),
+      'unreadCounts.${message.receiverId}': FieldValue.increment(1),
     });
 
     // Send notification to recipient
@@ -242,11 +247,74 @@ class FirestoreService {
     ));
   }
 
-  Stream<QuerySnapshot> getConversationsStream(String userId) {
+  Stream<List<DocumentSnapshot>> getConversationsStream(String userId) {
     return _firestore
         .collection(AppConstants.conversationsCollection)
         .where('participants', arrayContains: userId)
-        .snapshots();
+        .snapshots()
+        .map((snapshot) {
+      final docs = snapshot.docs;
+      docs.sort((a, b) {
+        final aTime = (a.data() as Map<String, dynamic>)['lastMessageAt'] as Timestamp?;
+        final bTime = (b.data() as Map<String, dynamic>)['lastMessageAt'] as Timestamp?;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+      return docs;
+    });
+  }
+
+  Future<void> markMessagesAsRead(String conversationId, String userId) async {
+    // 1. Reset unread count in conversation document
+    await _firestore
+        .collection(AppConstants.conversationsCollection)
+        .doc(conversationId)
+        .update({'unreadCounts.$userId': 0});
+
+    // 2. Mark individual messages as read (optional but good for UI consistency in ChatScreen)
+    final query = await _firestore
+        .collection(AppConstants.conversationsCollection)
+        .doc(conversationId)
+        .collection('messages')
+        .where('receiverId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .get();
+
+    if (query.docs.isEmpty) return;
+
+    final batch = _firestore.batch();
+    for (var doc in query.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
+    await batch.commit();
+  }
+
+  Stream<int> getUnreadMessagesCountStream(String userId) {
+    // This is a bit tricky with nested collections in Firestore.
+    // For now, we'll listen to all conversations the user is part of, 
+    // and for each one, we'll sum up the unread count.
+    // Alternatively, we could keep an unreadCount per participant in the conversation doc itself.
+    // Let's try the unreadCount in conversation doc approach as it's more efficient.
+    
+    // BUT, for now, let's use a simpler approach if possible.
+    // Actually, listening to all messages across all conversations is expensive.
+    // Let's add 'unreadCount' to the conversation document for each participant.
+    // Map<String, int> unreadCounts = {userId1: 0, userId2: 5}
+    
+    return _firestore
+        .collection(AppConstants.conversationsCollection)
+        .where('participants', arrayContains: userId)
+        .snapshots()
+        .map((snapshot) {
+          int total = 0;
+          for (var doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final unreadCounts = data['unreadCounts'] as Map<String, dynamic>? ?? {};
+            total += (unreadCounts[userId] ?? 0) as int;
+          }
+          return total;
+        });
   }
 
   Stream<List<MessageModel>> getMessagesStream(String conversationId) {
@@ -254,7 +322,7 @@ class FirestoreService {
         .collection(AppConstants.conversationsCollection)
         .doc(conversationId)
         .collection('messages')
-        .orderBy('createdAt', descending: false)
+        .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => MessageModel.fromFirestore(doc)).toList());
   }

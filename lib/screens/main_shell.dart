@@ -1,4 +1,5 @@
 import 'package:alumni_connect/screens/settings_screen.dart';
+import 'package:alumni_connect/services/firestore_service.dart';
 import 'package:alumni_connect/widgets/app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -82,8 +83,16 @@ class _MainShellState extends State<MainShell> {
         index: _currentIndex,
         children: screens,
       ),
-      bottomNavigationBar:
-          AppBottomNavBar(currentIndex: _currentIndex, onTap: _onNavTap),
+      bottomNavigationBar: StreamBuilder<int>(
+        stream: FirestoreService().getUnreadMessagesCountStream(context.watch<AuthProvider>().currentUser?.uid ?? ''),
+        builder: (context, snapshot) {
+          return AppBottomNavBar(
+            currentIndex: _currentIndex,
+            onTap: _onNavTap,
+            unreadMessageCount: snapshot.data ?? 0,
+          );
+        },
+      ),
     );
   }
 

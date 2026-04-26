@@ -6,7 +6,7 @@ import '../services/firestore_service.dart';
 import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
 import 'alumini_details_screen.dart';
-import 'messaging_screen.dart';
+import 'chat_screen.dart';
 
 class ConnectionsScreen extends StatefulWidget {
   final int initialTab;

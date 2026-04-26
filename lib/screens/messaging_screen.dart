@@ -1,12 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/user_model.dart';
-import '../models/message_model.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/app_app_bar.dart';
+import 'chat_screen.dart';
 
 class MessagingScreen extends StatelessWidget {
   final bool hideAppBar;
@@ -15,190 +17,295 @@ class MessagingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    if (user == null) return const Center(child: Text('Please sign in'));
+    if (user == null) {
+      return const Center(child: Text('Please sign in'));
+    }
 
-    Widget body = Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search messages',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+    Widget body = Container(
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Premium Search & Filter Row
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Search chats...',
+                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 22),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
             ),
           ),
-        ),
-        Expanded(
-          child: StreamBuilder(
-            stream: FirestoreService().getConversationsStream(user.uid),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-              final docs = snapshot.data!.docs;
-              if (docs.isEmpty) return const Center(child: Text('No conversations yet'));
-              return ListView.builder(
-                itemCount: docs.length,
-                itemBuilder: (_, i) {
-                  final data = docs[i].data() as Map<String, dynamic>;
-                  final participants = data['participants'] as List<dynamic>? ?? [];
-                  final otherId = participants.firstWhere((p) => p != user.uid, orElse: () => '');
-                  return FutureBuilder<UserModel?>(
-                    future: FirestoreService().getUser(otherId.toString()),
-                    builder: (ctx, userSnap) {
-                      if (!userSnap.hasData) return const SizedBox.shrink();
-                      final other = userSnap.data!;
-                      return ListTile(
-                        leading: ProfileAvatar(imageUrl: other.profileImage, name: other.name, size: 48),
-                        title: Text(other.name),
-                        subtitle: Text(data['lastMessage'] ?? 'No messages yet'),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              conversationId: docs[i].id,
-                              otherUser: other,
-                              currentUserId: user.uid,
+
+          // Chat List
+          Expanded(
+            child: StreamBuilder<List<DocumentSnapshot>>(
+              stream: FirestoreService().getConversationsStream(user.uid),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final docs = snapshot.data!;
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.forum_outlined, size: 64, color: Colors.grey.shade300),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No messages yet',
+                          style: TextStyle(fontSize: 18, color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Start a conversation with an alumni.',
+                          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: docs.length,
+                  itemBuilder: (_, i) {
+                    final data = docs[i].data() as Map<String, dynamic>;
+                    final participants = data['participants'] as List<dynamic>? ?? [];
+                    final otherId = participants.firstWhere((p) => p != user.uid, orElse: () => '');
+
+                    return FutureBuilder<UserModel?>(
+                      future: FirestoreService().getUser(otherId.toString()),
+                      builder: (ctx, userSnap) {
+                        if (!userSnap.hasData) {
+                          return const SizedBox(height: 84); // Prevents UI jumping
+                        }
+
+                        final other = userSnap.data!;
+                        final lastMessage = data['lastMessage'] as String? ?? 'Sent an attachment';
+
+                        // Extract timestamp & unread counts
+                        final timestamp = data['lastMessageAt'] as Timestamp?;
+                        final timeString = timestamp != null
+                            ? DateFormat('h:mm a').format(timestamp.toDate())
+                            : ''; 
+
+                        final unreadCounts = data['unreadCounts'] as Map<String, dynamic>? ?? {};
+                        final unreadCount = unreadCounts[user.uid] ?? 0;
+
+                        return _ChatTile(
+                          user: other,
+                          lastMessage: lastMessage,
+                          timeString: timeString,
+                          unreadCount: unreadCount,
+                          // Optional: Mock online status based on some data, or hardcode true to see the UI
+                          isOnline: i % 3 == 0,
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                conversationId: docs[i].id,
+                                otherUser: other,
+                                currentUserId: user.uid,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
-
-    if (hideAppBar) return body;
-
-    return Scaffold(
-      appBar: AppAppBar(title: 'Messages', showBack: true),
-      body: body,
-    );
-  }
-}
-
-class ChatScreen extends StatefulWidget {
-  final String conversationId;
-  final UserModel otherUser;
-  final String currentUserId;
-
-  const ChatScreen({
-    super.key,
-    required this.conversationId,
-    required this.otherUser,
-    required this.currentUserId,
-  });
-
-  @override
-  State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class _ChatScreenState extends State<ChatScreen> {
-  final _messageController = TextEditingController();
-  final FirestoreService _firestore = FirestoreService();
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
-  }
-
-  void _sendMessage() {
-    final content = _messageController.text.trim();
-    if (content.isEmpty) return;
-    _firestore.sendMessage(
-      widget.conversationId,
-      MessageModel(
-        id: '',
-        senderId: widget.currentUserId,
-        receiverId: widget.otherUser.uid,
-        content: content,
-        createdAt: DateTime.now(),
-      ),
-    );
-    _messageController.clear();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppTheme.primaryRed,
-        foregroundColor: AppTheme.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Row(
-          children: [
-            ProfileAvatar(imageUrl: widget.otherUser.profileImage, name: widget.otherUser.name, size: 36),
-            const SizedBox(width: 12),
-            Text(widget.otherUser.name),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<List<MessageModel>>(
-              stream: _firestore.getMessagesStream(widget.conversationId),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final messages = snapshot.data!;
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  reverse: true,
-                  itemCount: messages.length,
-                  itemBuilder: (_, i) {
-                    final m = messages[messages.length - 1 - i];
-                    final isMe = m.senderId == widget.currentUserId;
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isMe ? AppTheme.primaryRed : AppTheme.dividerGray,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Text(
-                          m.content,
-                          style: TextStyle(color: isMe ? AppTheme.white : AppTheme.textDark),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
                 );
               },
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
+        ],
+      ),
+    );
+
+    if (hideAppBar) return body;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: const AppAppBar(title: 'Messages', showBack: true),
+      body: body,
+    );
+  }
+}
+
+// Custom Premium Chat Tile (Card Style)
+class _ChatTile extends StatelessWidget {
+  final UserModel user;
+  final String lastMessage;
+  final String timeString;
+  final int unreadCount;
+  final bool isOnline;
+  final VoidCallback onTap;
+
+  const _ChatTile({
+    required this.user,
+    required this.lastMessage,
+    required this.timeString,
+    this.unreadCount = 0,
+    this.isOnline = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasUnread = unreadCount > 0;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), // Adds space around the card
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16), // Rounded modern corners
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05), // Soft, modern shadow
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent, // Allows the container's white background to show through
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16), // Keeps the ripple effect inside the rounded corners
+          highlightColor: Colors.grey.shade50,
+          splashColor: Colors.grey.shade100,
+          child: Padding(
+            padding: const EdgeInsets.all(16), // Inner padding for the card contents
             child: Row(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Type a message',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
+                // Avatar with Online Status Indicator
+                Stack(
+                  children: [
+                    ProfileAvatar(imageUrl: user.profileImage, name: user.name, size: 56),
+                    if (isOnline)
+                      Positioned(
+                        bottom: 0,
+                        right: 2,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade500,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.send, color: AppTheme.primaryRed),
-                  onPressed: _sendMessage,
+                const SizedBox(width: 16),
+
+                // Message Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              user.name,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+                                color: Colors.black87,
+                                letterSpacing: -0.3,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            timeString,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: hasUnread ? AppTheme.primaryRed : Colors.grey.shade500,
+                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              lastMessage,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: hasUnread ? Colors.black87 : Colors.grey.shade600,
+                                fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                          // Unread Badge
+                          if (hasUnread) ...[
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.primaryRed,
+                                shape: BoxShape.rectangle,
+                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                              ),
+                              child: Text(
+                                unreadCount > 99 ? '99+' : unreadCount.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

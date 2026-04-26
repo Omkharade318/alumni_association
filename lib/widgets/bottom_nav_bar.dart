@@ -4,11 +4,13 @@ import '../config/theme.dart';
 class AppBottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final int unreadMessageCount;
 
   const AppBottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.unreadMessageCount = 0,
   });
 
   @override
@@ -27,12 +29,27 @@ class AppBottomNavBar extends StatelessWidget {
       child: BottomNavigationBar(
         currentIndex: currentIndex,
         onTap: onTap,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.edit_note), activeIcon: Icon(Icons.edit_note), label: 'Feed'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_outlined), activeIcon: Icon(Icons.chat), label: 'Messages'),
-          BottomNavigationBarItem(icon: Icon(Icons.event_outlined), activeIcon: Icon(Icons.event), label: 'Events'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        type: BottomNavigationBarType.fixed,
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.edit_note), activeIcon: Icon(Icons.edit_note), label: 'Feed'),
+          BottomNavigationBarItem(
+            icon: unreadMessageCount > 0
+                ? Badge(
+                    label: Text(unreadMessageCount.toString()),
+                    child: const Icon(Icons.chat_outlined),
+                  )
+                : const Icon(Icons.chat_outlined),
+            activeIcon: unreadMessageCount > 0
+                ? Badge(
+                    label: Text(unreadMessageCount.toString()),
+                    child: const Icon(Icons.chat),
+                  )
+                : const Icon(Icons.chat),
+            label: 'Messages',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.event_outlined), activeIcon: Icon(Icons.event), label: 'Events'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

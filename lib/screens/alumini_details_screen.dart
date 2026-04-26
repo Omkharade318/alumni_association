@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/app_app_bar.dart';
+import 'chat_screen.dart';
 import 'messaging_screen.dart';
 import 'edit_profile_screen.dart';
 // Assuming you have ChatScreen imported here
