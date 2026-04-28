@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/time_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -117,7 +118,7 @@ class MessagingScreen extends StatelessWidget {
                         // Extract timestamp & unread counts
                         final timestamp = data['lastMessageAt'] as Timestamp?;
                         final timeString = timestamp != null
-                            ? DateFormat('h:mm a').format(timestamp.toDate())
+                            ? TimeUtils.formatTimestamp(timestamp.toDate())
                             : ''; 
 
                         final unreadCounts = data['unreadCounts'] as Map<String, dynamic>? ?? {};

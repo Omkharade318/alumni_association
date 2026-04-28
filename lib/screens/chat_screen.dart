@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart'; // Added for message timestamps
 
+import '../utils/time_utils.dart';
 import '../config/theme.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
@@ -144,12 +145,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   reverse: true, // Auto-scrolls to the bottom
                   itemCount: messages.length,
                   itemBuilder: (_, i) {
-                    // Because reverse is true, index 0 is the newest message
                     final m = messages[i];
                     final isMe = m.senderId == widget.currentUserId;
                     final timeString = DateFormat('h:mm a').format(m.createdAt);
 
-                    return _buildMessageBubble(m.content, isMe, timeString);
+                    // Date Header Logic
+                    bool showDateHeader = false;
+                    if (i == messages.length - 1) {
+                      showDateHeader = true;
+                    } else {
+                      final prevMessage = messages[i + 1];
+                      if (m.createdAt.day != prevMessage.createdAt.day ||
+                          m.createdAt.month != prevMessage.createdAt.month ||
+                          m.createdAt.year != prevMessage.createdAt.year) {
+                        showDateHeader = true;
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        if (showDateHeader) _buildDateHeader(m.createdAt),
+                        _buildMessageBubble(m.content, isMe, timeString),
+                      ],
+                    );
                   },
                 );
               },
@@ -220,6 +238,27 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // Helper widget to build the date header (e.g., Today, Yesterday, or Date)
+  Widget _buildDateHeader(DateTime dateTime) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Text(
+        TimeUtils.formatChatDate(dateTime),
+        style: TextStyle(
+          color: Colors.grey.shade600,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
