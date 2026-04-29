@@ -1,4 +1,3 @@
-import 'package:alumni_connect/screens/settings_screen.dart';
 import 'package:alumni_connect/services/firestore_service.dart';
 import 'package:alumni_connect/widgets/app_drawer.dart';
 import 'package:flutter/material.dart';
@@ -6,18 +5,11 @@ import 'package:provider/provider.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
-import 'alumni_directory_screen.dart';
-import 'donation_screen.dart';
 import 'feed_screen.dart';
 import 'home_screen.dart';
-import 'connections_screen.dart';
-import 'jobs_screen.dart';
 import 'messaging_screen.dart';
-import 'search_alumni_screen.dart';
 import 'events_calendar_screen.dart';
 import 'profile_screen.dart';
-import 'notifications_screen.dart';
-import 'admin/admin_gate_screen.dart';
 import 'edit_profile_screen.dart';
 
 class MainShell extends StatefulWidget {

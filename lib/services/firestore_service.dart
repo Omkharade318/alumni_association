@@ -9,6 +9,7 @@ import '../models/donation_contribution_model.dart';
 import '../models/notification_model.dart';
 import '../models/job_model.dart';
 import '../models/news_model.dart';
+import '../models/comment_model.dart';
 import 'notification_service.dart';
 import '../utils/constants.dart';
 
@@ -102,13 +103,22 @@ class FirestoreService {
     });
   }
 
-  Future<void> createComment(String postId, String userId, String userName, String content) async {
-    await _firestore.collection(AppConstants.postsCollection).doc(postId).collection('comments').add({
-      'userId': userId,
-      'userName': userName,
-      'content': content,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+  Stream<List<CommentModel>> getCommentsStream(String postId) {
+    return _firestore
+        .collection(AppConstants.postsCollection)
+        .doc(postId)
+        .collection('comments')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => CommentModel.fromFirestore(doc)).toList());
+  }
+
+  Future<void> createComment(String postId, CommentModel comment) async {
+    await _firestore
+        .collection(AppConstants.postsCollection)
+        .doc(postId)
+        .collection('comments')
+        .add(comment.toFirestore());
     await addComment(postId);
   }
 

@@ -3,6 +3,7 @@ import '../config/theme.dart';
 import '../services/firestore_service.dart';
 import '../models/news_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/full_screen_image_viewer.dart';
 
 class NewsScreen extends StatelessWidget {
   const NewsScreen({super.key});
@@ -53,13 +54,29 @@ class _NewsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (news.imageUrl != null && news.imageUrl!.isNotEmpty)
-            CachedNetworkImage(
-              imageUrl: news.imageUrl!,
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Container(height: 180, color: Colors.grey[200]),
-              errorWidget: (_, __, ___) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.error)),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenImageViewer(
+                      imageUrl: news.imageUrl!,
+                      tag: 'news_${news.id}',
+                    ),
+                  ),
+                );
+              },
+              child: Hero(
+                tag: 'news_${news.id}',
+                child: CachedNetworkImage(
+                  imageUrl: news.imageUrl!,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Container(height: 180, color: Colors.grey[200]),
+                  errorWidget: (_, __, ___) => Container(height: 180, color: Colors.grey[200], child: const Icon(Icons.error)),
+                ),
+              ),
             ),
           Padding(
             padding: const EdgeInsets.all(16),

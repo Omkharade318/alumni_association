@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:intl/intl.dart'; // Added for message timestamps
-
+import 'package:intl/intl.dart';
 import '../utils/time_utils.dart';
 import '../config/theme.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
 import '../services/firestore_service.dart';
 import '../widgets/profile_avatar.dart';
+import 'alumini_details_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
@@ -84,30 +83,36 @@ class _ChatScreenState extends State<ChatScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         titleSpacing: 0,
-        title: Row(
-          children: [
-            ProfileAvatar(imageUrl: widget.otherUser.profileImage, name: widget.otherUser.name, size: 40),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.otherUser.name,
-                    style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    widget.otherUser.jobTitle ?? 'Alumni', // Subtitle context
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.normal),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+        title: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: widget.otherUser)),
+          ),
+          child: Row(
+            children: [
+              ProfileAvatar(imageUrl: widget.otherUser.profileImage, name: widget.otherUser.name, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.otherUser.name,
+                      style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      widget.otherUser.jobTitle ?? 'Alumni', // Subtitle context
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.normal),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(

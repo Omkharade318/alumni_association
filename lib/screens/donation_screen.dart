@@ -6,6 +6,7 @@ import '../utils/constants.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../models/donation_model.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/app_app_bar.dart';
 
 class DonationScreen extends StatelessWidget {
@@ -62,7 +63,23 @@ class _DonationCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (donation.imageUrl != null)
-              Image.network(donation.imageUrl!, height: 150, fit: BoxFit.cover)
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenImageViewer(
+                        imageUrl: donation.imageUrl!,
+                        tag: 'donation_card_${donation.id}',
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: 'donation_card_${donation.id}',
+                  child: Image.network(donation.imageUrl!, height: 150, fit: BoxFit.cover),
+                ),
+              )
             else
               Container(
                 height: 150,
@@ -164,7 +181,23 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (donation.imageUrl != null)
-              Image.network(donation.imageUrl!, height: 200, fit: BoxFit.cover)
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenImageViewer(
+                        imageUrl: donation.imageUrl!,
+                        tag: 'donation_detail_${donation.id}',
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: 'donation_detail_${donation.id}',
+                  child: Image.network(donation.imageUrl!, height: 200, fit: BoxFit.cover),
+                ),
+              )
             else
               Container(
                 height: 200,

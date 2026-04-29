@@ -6,9 +6,14 @@ import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/storage_service.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/post_model.dart';
+import '../models/comment_model.dart';
+import '../models/user_model.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import '../widgets/app_app_bar.dart';
+import 'alumini_details_screen.dart';
 
 class FeedScreen extends StatelessWidget {
   const FeedScreen({super.key});
@@ -275,42 +280,52 @@ class _PostCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ProfileAvatar(imageUrl: post.userImage, name: post.userName, size: 50),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      post.userName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-
-                    Row(
-                      children: [
-                        if (post.userJobTitle != null)
-                          Text(
-                            post.userJobTitle!,
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
-                          ),
+          GestureDetector(
+            onTap: () async {
+              final firestore = FirestoreService();
+              final targetUser = await firestore.getUser(post.userId);
+              if (targetUser != null && context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: targetUser)),
+                );
+              }
+            },
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ProfileAvatar(imageUrl: post.userImage, name: post.userName, size: 50),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        post.userName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      Row(
+                        children: [
+                          if (post.userJobTitle != null)
+                            Text(
+                              post.userJobTitle!,
+                              style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                            ),
                           Text(
                             ' ${post.userDegree ?? "Alumni"}${post.userBranch != null ? "(${post.userBranch})" : ""} ${post.userBatch ?? ""}',
                             style: const TextStyle(fontSize: 10, color: AppTheme.textGray),
                           ),
-                      ]
-                    ),
-
-                    Text(
-                      _formatDate(post.createdAt),
-                      style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
-                    ),
-                  ],
+                        ],
+                      ),
+                      Text(
+                        _formatDate(post.createdAt),
+                        style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -319,24 +334,59 @@ class _PostCard extends StatelessWidget {
           ),
           if (post.imageUrls != null && post.imageUrls!.isNotEmpty) ...[
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                post.imageUrls![0],
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 200,
-                    color: AppTheme.dividerGray,
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FullScreenImageViewer(
+                      imageUrl: post.imageUrls![0],
+                      tag: 'post_${post.id}',
+                    ),
+                  ),
+                );
+              },
+              child: Hero(
+                tag: 'post_${post.id}',
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    post.imageUrls![0],
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 200,
+                        color: AppTheme.dividerGray,
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (post.likes.isNotEmpty) ...[
+                const Icon(Icons.thumb_up, size: 14, color: AppTheme.primaryRed),
+                const SizedBox(width: 4),
+                Text(
+                  '${post.likes.length}',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                ),
+                const SizedBox(width: 12),
+              ],
+              if (post.commentCount > 0)
+                Text(
+                  '${post.commentCount} comments',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           const Divider(height: 1, color: AppTheme.dividerGray),
           const SizedBox(height: 8),
           Row(
@@ -358,7 +408,12 @@ class _PostCard extends StatelessWidget {
               _ActionButton(
                 icon: Icons.share_outlined,
                 label: 'Share',
-                onPressed: () {},
+                onPressed: () {
+                  Share.share(
+                    '${post.userName} posted on Alumni Connect: \n\n${post.content}',
+                    subject: 'Check out this post from ${post.userName}',
+                  );
+                },
               ),
             ],
           ),
@@ -368,16 +423,184 @@ class _PostCard extends StatelessWidget {
   }
 
   void _showComments(BuildContext context, PostModel post) {
+    final commentController = TextEditingController();
+    final user = context.read<AuthProvider>().currentUser;
+    final firestore = FirestoreService();
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        padding: const EdgeInsets.all(16),
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Comments (${post.commentCount})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            const Text('Comments will appear here when users comment.'),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Comments (${post.commentCount})',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: StreamBuilder<List<CommentModel>>(
+                stream: firestore.getCommentsStream(post.id),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final comments = snapshot.data!;
+                  if (comments.isEmpty) {
+                    return const Center(
+                      child: Text('No comments yet. Be the first to comment!'),
+                    );
+                  }
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: comments.length,
+                    itemBuilder: (_, i) {
+                      final comment = comments[i];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () async {
+                                final firestore = FirestoreService();
+                                final targetUser = await firestore.getUser(comment.userId);
+                                if (targetUser != null && context.mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: targetUser)),
+                                  );
+                                }
+                              },
+                              child: ProfileAvatar(
+                                imageUrl: comment.userImage,
+                                name: comment.userName,
+                                size: 36,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () async {
+                                          final firestore = FirestoreService();
+                                          final targetUser = await firestore.getUser(comment.userId);
+                                          if (targetUser != null && context.mounted) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: targetUser)),
+                                            );
+                                          }
+                                        },
+                                        child: Text(
+                                          comment.userName,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _formatDate(comment.createdAt),
+                                        style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    comment.content,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: commentController,
+                      decoration: InputDecoration(
+                        hintText: 'Add a comment...',
+                        hintStyle: const TextStyle(color: AppTheme.textGray),
+                        filled: true,
+                        fillColor: AppTheme.dividerGray.withValues(alpha: 0.3),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send, color: AppTheme.primaryRed),
+                    onPressed: () async {
+                      if (commentController.text.trim().isEmpty || user == null) return;
+                      
+                      final content = commentController.text.trim();
+                      commentController.clear();
+
+                      final comment = CommentModel(
+                        id: '',
+                        userId: user.uid,
+                        userName: user.name,
+                        userImage: user.profileImage,
+                        content: content,
+                        createdAt: DateTime.now(),
+                      );
+
+                      await firestore.createComment(post.id, comment);
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

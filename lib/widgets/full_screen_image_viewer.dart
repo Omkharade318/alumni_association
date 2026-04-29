@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class FullScreenImageViewer extends StatelessWidget {
   final String imageUrl;
+  final String? tag;
 
-  const FullScreenImageViewer({super.key, required this.imageUrl});
+  const FullScreenImageViewer({
+    super.key,
+    required this.imageUrl,
+    this.tag,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,22 +21,23 @@ class FullScreenImageViewer extends StatelessWidget {
         elevation: 0,
       ),
       body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          child: Hero(
-            tag: 'profilePic',
-            child: Image.network(
-              imageUrl,
+        child: Hero(
+          tag: tag ?? imageUrl,
+          child: InteractiveViewer(
+            panEnabled: true,
+            boundaryMargin: const EdgeInsets.all(20),
+            minScale: 0.5,
+            maxScale: 4,
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
               fit: BoxFit.contain,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.broken_image, color: Colors.white, size: 50),
+              placeholder: (context, url) => const Center(
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
+              errorWidget: (context, url, error) => const Icon(
+                Icons.error,
+                color: Colors.white,
+              ),
             ),
           ),
         ),

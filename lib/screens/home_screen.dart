@@ -11,8 +11,10 @@ import '../models/event_model.dart';
 import '../models/news_model.dart';
 import '../services/notification_service.dart';
 import '../widgets/profile_avatar.dart';
+import '../widgets/full_screen_image_viewer.dart';
 import 'alumini_details_screen.dart';
 import 'connections_screen.dart';
+import 'events_calendar_screen.dart';
 
 // Color palette from your image
 class AppColors {
@@ -531,17 +533,33 @@ class _NewsSection extends StatelessWidget {
             ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: hasImage
-                  ? CachedNetworkImage(
-                imageUrl: news.imageUrl!,
-                height: 130,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  height: 130,
-                  color: Colors.grey.shade200,
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ? GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenImageViewer(
+                        imageUrl: news.imageUrl!,
+                        tag: 'news_home_${news.id}',
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: 'news_home_${news.id}',
+                  child: CachedNetworkImage(
+                    imageUrl: news.imageUrl!,
+                    height: 130,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => Container(
+                      height: 130,
+                      color: Colors.grey.shade200,
+                      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    ),
+                    errorWidget: (_, __, ___) => _imageError(double.infinity, 130),
+                  ),
                 ),
-                errorWidget: (_, __, ___) => _imageError(double.infinity, 130),
               )
                   : Container(
                 height: 130,
@@ -607,13 +625,29 @@ class _NewsSection extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               if (news.imageUrl != null && news.imageUrl!.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: CachedNetworkImage(
-                    imageUrl: news.imageUrl!,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FullScreenImageViewer(
+                          imageUrl: news.imageUrl!,
+                          tag: 'news_home_detail_${news.id}',
+                        ),
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: 'news_home_detail_${news.id}',
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: CachedNetworkImage(
+                        imageUrl: news.imageUrl!,
+                        height: 220,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -683,66 +717,72 @@ class _UpcomingEventsSection extends StatelessWidget {
               day = DateFormat('dd').format(event.date!);
             }
 
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 2)),
-                ],
+            return GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => EventDetailScreen(event: event)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    // Calendar Date Block
-                    Container(
-                      width: 55,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryMaroon.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(month, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryMaroon)),
-                          Text(day, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryMaroon)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Event Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            event.title,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, height: 1.2),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
-                              const SizedBox(width: 4),
-                              Expanded(
-                                child: Text(
-                                  event.location ?? 'TBA',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          )
-                        ],
-                      ),
-                    ),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 2)),
                   ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      // Calendar Date Block
+                      Container(
+                        width: 55,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryMaroon.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(month, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryMaroon)),
+                            Text(day, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.primaryMaroon)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Event Details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              event.title,
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, height: 1.2),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    event.location ?? 'TBA',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
