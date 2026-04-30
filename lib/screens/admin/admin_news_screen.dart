@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+
+import '../../config/theme.dart';
 import '../../models/news_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
@@ -10,65 +13,6 @@ import '../../services/storage_service.dart';
 
 class AdminNewsScreen extends StatelessWidget {
   const AdminNewsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final firestore = FirestoreService();
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F8F8),
-      appBar: AppBar(
-        title: const Text('News & Updates'),
-        backgroundColor: const Color(0xFF8B2332),
-        foregroundColor: Colors.white,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: const Color(0xFF8B2332),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add News'),
-        onPressed: () => _showNewsForm(context, null),
-      ),
-      body: StreamBuilder<List<NewsModel>>(
-        stream: firestore.getNewsStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          final newsList = snapshot.data ?? [];
-          if (newsList.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.newspaper, size: 72, color: Colors.grey.shade300),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No news yet.\nTap + to publish your first update.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey, fontSize: 15),
-                  ),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: newsList.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, i) => _NewsAdminCard(
-              news: newsList[i],
-              onEdit: () => _showNewsForm(context, newsList[i]),
-              onDelete: () => _confirmDelete(context, newsList[i]),
-            ),
-          );
-        },
-      ),
-    );
-  }
 
   void _showNewsForm(BuildContext context, NewsModel? existing) {
     showModalBottomSheet(
@@ -83,23 +27,118 @@ class AdminNewsScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete News'),
-        content: Text('Delete "${news.title}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete News?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text(
+          'This will permanently delete “${news.title}”. This action cannot be undone.',
+          style: const TextStyle(height: 1.4),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
             onPressed: () async {
               Navigator.pop(ctx);
               await FirestoreService().deleteNews(news.id);
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('News deleted')),
+                  SnackBar(
+                    content: const Text('News deleted successfully'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 );
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final firestore = FirestoreService();
+
+    return Scaffold(
+      backgroundColor: Colors.grey.shade50, // Modern off-white background
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 22),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'News & Updates',
+          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: Colors.grey.shade200, height: 1),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppTheme.primaryRed,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        onPressed: () => _showNewsForm(context, null),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Publish News', style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
+      body: StreamBuilder<List<NewsModel>>(
+        stream: firestore.getNewsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+
+          final newsList = snapshot.data ?? [];
+
+          if (newsList.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                    child: Icon(Icons.campaign_rounded, size: 64, color: Colors.grey.shade400),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text('No news published', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  const SizedBox(height: 8),
+                  Text('Tap + to publish your first update.', style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 100), // Extra bottom padding for FAB
+            itemCount: newsList.length,
+            itemBuilder: (context, i) => _NewsAdminCard(
+              news: newsList[i],
+              onEdit: () => _showNewsForm(context, newsList[i]),
+              onDelete: () => _confirmDelete(context, newsList[i]),
+            ),
+          );
+        },
       ),
     );
   }
@@ -120,68 +159,118 @@ class _NewsAdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final bool hasImage = news.imageUrl != null && news.imageUrl!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Edge-to-Edge Header Image
+          if (hasImage)
+            Image.network(
+              news.imageUrl!,
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    news.title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
+                // Metadata
+                Row(
+                  children: [
+                    Icon(Icons.person_rounded, size: 14, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(
+                      news.createdBy,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(Icons.access_time_rounded, size: 14, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Text(
+                      DateFormat('MMM dd, yyyy').format(news.createdAt),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  ],
                 ),
-                PopupMenuButton<String>(
-                  onSelected: (v) {
-                    if (v == 'edit') onEdit();
-                    if (v == 'delete') onDelete();
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'edit', child: Text('Edit')),
-                    PopupMenuItem(
-                      value: 'delete',
-                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                const SizedBox(height: 12),
+
+                // Content
+                Text(
+                  news.title,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87, height: 1.2),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  news.body,
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.5),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1, color: Colors.black12),
+                ),
+
+                // Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    InkWell(
+                      onTap: onEdit,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_rounded, size: 16, color: Colors.grey.shade700),
+                            const SizedBox(width: 6),
+                            Text('Edit', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: onDelete,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8)),
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_rounded, size: 16, color: Colors.red.shade600),
+                            const SizedBox(width: 6),
+                            Text('Delete', style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              news.body,
-              style: const TextStyle(fontSize: 13, color: Colors.black54),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (news.imageUrl != null && news.imageUrl!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.image, size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      news.imageUrl!,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              'Published by ${news.createdBy}',
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -225,17 +314,16 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    // Optimization: Reduced dimensions and quality for faster uploads
     final image = await picker.pickImage(
-      source: ImageSource.gallery, 
-      maxWidth: 800, 
-      maxHeight: 800, 
-      imageQuality: 70
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70
     );
     if (image != null) {
       setState(() {
         _imageFile = File(image.path);
-        _imageCtrl.clear(); // Clear URL if a file is picked
+        _imageCtrl.clear();
         _uploadProgress = 0.0;
       });
     }
@@ -243,7 +331,7 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() {
       _saving = true;
       _statusMessage = 'Initializing...';
@@ -253,16 +341,15 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
     final user = context.read<AuthProvider>().currentUser;
     final firestore = FirestoreService();
     final storage = StorageService();
-    
+
     String? imageUrl = _imageCtrl.text.trim().isEmpty ? null : _imageCtrl.text.trim();
 
     try {
-      // 1. Upload image if a new file was picked
       if (_imageFile != null) {
         setState(() => _statusMessage = 'Uploading Image...');
-        
+
         imageUrl = await storage.uploadImage(
-          'news', 
+          'news',
           _imageFile!,
           onProgress: (percent) {
             if (mounted) {
@@ -281,8 +368,8 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
         _statusMessage = 'Finalizing Update...';
         _uploadProgress = 1.0;
       });
+
       if (widget.existing == null) {
-        // 2. Create new news item
         final news = NewsModel(
           id: const Uuid().v4(),
           title: _titleCtrl.text.trim(),
@@ -296,7 +383,6 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
           onTimeout: () => throw 'Database update timed out.',
         );
       } else {
-        // 3. Update existing news item
         await firestore.updateNews(widget.existing!.id, {
           'title': _titleCtrl.text.trim(),
           'body': _bodyCtrl.text.trim(),
@@ -312,18 +398,17 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(widget.existing == null ? 'News published successfully!' : 'News updated successfully!'),
-            backgroundColor: const Color(0xFF8B2332),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      print('NEWS_PUBLISH_ERROR: $e');
       if (mounted) {
         setState(() {
           _saving = false;
           _statusMessage = '';
         });
-        
+
         String displayError = e.toString();
         if (displayError.contains('PERMISSION_DENIED')) {
           displayError = 'Permission denied. Please check Firebase Storage rules.';
@@ -334,6 +419,7 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Text('Publishing Failed'),
             content: Text(displayError),
             actions: [
@@ -348,11 +434,12 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existing != null;
+
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -363,49 +450,30 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.newspaper, color: Color(0xFF8B2332)),
-                    const SizedBox(width: 8),
                     Text(
                       isEdit ? 'Edit News' : 'Publish News',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: -0.5),
                     ),
-                    const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.close),
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                        child: Icon(Icons.close_rounded, size: 20, color: Colors.grey.shade700),
+                      ),
                       onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
-                const Divider(),
-                if (_saving && _imageFile != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: _uploadProgress,
-                            backgroundColor: Colors.grey[200],
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF8B2332)),
-                            minHeight: 8,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '${(_uploadProgress * 100).toInt()}%',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF8B2332)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                const SizedBox(height: 12),
-                
+                const SizedBox(height: 24),
+
                 // Image Picker Preview
+                _buildInputLabel('Cover Image'),
                 Center(
                   child: GestureDetector(
                     onTap: _saving ? null : _pickImage,
@@ -413,60 +481,65 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
                       width: double.infinity,
                       height: 180,
                       decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[300]!),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade300, width: 1.5),
                       ),
                       child: Stack(
                         alignment: Alignment.center,
+                        fit: StackFit.expand,
                         children: [
                           if (_imageFile != null)
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity, height: 180),
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.file(_imageFile!, fit: BoxFit.cover),
                             )
                           else if (widget.existing?.imageUrl != null && widget.existing!.imageUrl!.isNotEmpty)
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(widget.existing!.imageUrl!, fit: BoxFit.cover, width: double.infinity, height: 180),
+                              borderRadius: BorderRadius.circular(18),
+                              child: Image.network(widget.existing!.imageUrl!, fit: BoxFit.cover),
                             )
                           else
-                            const Column(
+                            Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add_a_photo, size: 40, color: Colors.grey),
-                                SizedBox(height: 8),
-                                Text('Tap to pick an image', style: TextStyle(color: Colors.grey)),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryRed.withOpacity(0.05),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.add_photo_alternate_outlined, size: 32, color: AppTheme.primaryRed.withOpacity(0.8)),
+                                ),
+                                const SizedBox(height: 12),
+                                Text('Tap to upload image', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
                               ],
                             ),
-                          
+
                           // Progress overlay on image
-                          if (_saving && _imageFile != null)
+                          if (_saving && _imageFile != null && _uploadProgress > 0 && _uploadProgress < 1)
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.black45,
-                                borderRadius: BorderRadius.circular(12),
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(18),
                               ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   CircularProgressIndicator(
-                                    value: _uploadProgress > 0 ? _uploadProgress : null,
-                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                                    value: _uploadProgress,
                                     backgroundColor: Colors.white24,
+                                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 16),
                                   Text(
                                     '${(_uploadProgress * 100).toInt()}%',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 24,
-                                    ),
+                                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
+                                  const SizedBox(height: 4),
                                   const Text(
-                                    'UPLOADING IMAGE...',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.bold),
+                                    'Uploading...',
+                                    style: TextStyle(color: Colors.white70, fontSize: 12),
                                   ),
                                 ],
                               ),
@@ -476,104 +549,124 @@ class _NewsFormSheetState extends State<_NewsFormSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                
-                TextFormField(
+                const SizedBox(height: 20),
+
+                // Form Fields
+                _buildInputLabel('Headline'),
+                _buildModernTextField(
                   controller: _titleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Headline *',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.title),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Headline is required' : null,
-                  textCapitalization: TextCapitalization.sentences,
+                  hint: 'Enter a catchy title...',
+                  icon: Icons.title_rounded,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Headline is required' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
+                const SizedBox(height: 20),
+
+                _buildInputLabel('Body Text'),
+                _buildModernTextField(
                   controller: _bodyCtrl,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Body / Details *',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.article),
-                    alignLabelWithHint: true,
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Body is required' : null,
-                  textCapitalization: TextCapitalization.sentences,
+                  hint: 'Write the full details here...',
+                  maxLines: 5,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Body is required' : null,
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
+                const SizedBox(height: 20),
+
+                _buildInputLabel('Image URL (Optional)'),
+                _buildModernTextField(
                   controller: _imageCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Image URL (optional if photo picked)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.image_outlined),
-                    hintText: 'https://...',
-                  ),
-                  keyboardType: TextInputType.url,
+                  hint: 'https://...',
+                  icon: Icons.link_rounded,
                   enabled: _imageFile == null,
+                  keyboardType: TextInputType.url,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
+
+                // Submit Button
                 SizedBox(
                   width: double.infinity,
+                  height: 56,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B2332),
+                      backgroundColor: AppTheme.primaryRed,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     onPressed: _saving ? null : _save,
                     child: _saving
-                        ? Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_uploadProgress > 0 && _uploadProgress < 1) ...[
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(10),
-                                    child: LinearProgressIndicator(
-                                      value: _uploadProgress,
-                                      backgroundColor: Colors.white24,
-                                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                                      minHeight: 6,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${(_uploadProgress * 100).toInt()}% uploaded',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                                ),
-                              ] else ...[
-                                const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white),
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              Text(_statusMessage, style: const TextStyle(fontSize: 12)),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.send),
-                              const SizedBox(width: 8),
-                              Text(isEdit ? 'Update' : 'Publish'),
-                            ],
-                          ),
+                        ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5)),
+                        const SizedBox(width: 12),
+                        Text(_statusMessage, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    )
+                        : Text(
+                      isEdit ? 'Save Changes' : 'Publish News',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 12),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // Helper widget for input labels
+  Widget _buildInputLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8, left: 4),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+      ),
+    );
+  }
+
+  // Helper widget for modern text fields
+  Widget _buildModernTextField({
+    required TextEditingController controller,
+    required String hint,
+    IconData? icon,
+    bool enabled = true,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      enabled: enabled,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      textCapitalization: TextCapitalization.sentences,
+      validator: validator,
+      style: const TextStyle(fontSize: 15, color: Colors.black87),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 15),
+        prefixIcon: icon != null ? Icon(icon, color: Colors.grey.shade400, size: 20) : null,
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppTheme.primaryRed, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.red.shade300, width: 1.5),
         ),
       ),
     );

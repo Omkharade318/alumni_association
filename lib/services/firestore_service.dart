@@ -25,6 +25,11 @@ class FirestoreService {
     return doc.exists ? UserModel.fromFirestore(doc) : null;
   }
 
+  Future<List<String>> getAllUserIds() async {
+    final query = await _firestore.collection(AppConstants.usersCollection).get();
+    return query.docs.map((doc) => doc.id).toList();
+  }
+
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     await _firestore.collection(AppConstants.usersCollection).doc(uid).update(data);
   }
@@ -138,8 +143,16 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => EventModel.fromFirestore(doc)).toList());
   }
 
-  Future<void> createEvent(EventModel event) async {
+  Future<void> createEvent(EventModel event, {String? senderName}) async {
     await _firestore.collection(AppConstants.eventsCollection).doc(event.id).set(event.toFirestore());
+    await notifyAllUsers(
+      title: 'New Event: ${event.title}',
+      body: 'A new event has been scheduled. Tap to check it out!',
+      type: NotificationType.event,
+      relatedId: event.id,
+      senderId: event.organizerId ?? 'admin',
+      senderName: senderName ?? 'Admin',
+    );
   }
 
   /// Updates only the provided fields. Callers must avoid sending fields
@@ -168,8 +181,16 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => DonationModel.fromFirestore(doc)).toList());
   }
 
-  Future<void> createDonation(DonationModel donation) async {
+  Future<void> createDonation(DonationModel donation, {String? senderId, String? senderName}) async {
     await _firestore.collection(AppConstants.donationsCollection).doc(donation.id).set(donation.toFirestore());
+    await notifyAllUsers(
+      title: 'New Donation Campaign',
+      body: 'Support our ${donation.category}: ${donation.title}',
+      type: NotificationType.donation,
+      relatedId: donation.id,
+      senderId: senderId ?? 'admin',
+      senderName: senderName ?? 'Admin',
+    );
   }
 
   /// Updates only the provided fields. Callers must avoid sending
@@ -191,7 +212,7 @@ class FirestoreService {
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => DonationContributionModel.fromFirestore(doc)).toList());
   }
-
+  
   Future<void> addDonation(String donationId, double amount, String userId) async {
     await _firestore.collection(AppConstants.donationsCollection).doc(donationId).update({
       'collectedAmount': FieldValue.increment(amount),
@@ -200,6 +221,26 @@ class FirestoreService {
       'userId': userId,
       'amount': amount,
       'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+  
+  Future<void> updateLastViewedDonations(String userId) async {
+    await _firestore.collection(AppConstants.usersCollection).doc(userId).update({
+      'lastViewedDonations': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<int> getUnreadDonationsCountStream(String userId) {
+    return _firestore.collection(AppConstants.usersCollection).doc(userId).snapshots().switchMap((userDoc) {
+      if (!userDoc.exists) return Stream.value(0);
+      final lastViewed = (userDoc.data() as Map<String, dynamic>)['lastViewedDonations'] as Timestamp?;
+      
+      Query<Map<String, dynamic>> query = _firestore.collection(AppConstants.donationsCollection);
+      if (lastViewed != null) {
+        query = query.where('createdAt', isGreaterThan: lastViewed);
+      }
+      
+      return query.snapshots().map((snapshot) => snapshot.docs.length);
     });
   }
 
@@ -282,7 +323,7 @@ class FirestoreService {
         .doc(conversationId)
         .update({'unreadCounts.$userId': 0});
 
-    // 2. Mark individual messages as read (optional but good for UI consistency in ChatScreen)
+    // 2. Mark individual messages as read
     final query = await _firestore
         .collection(AppConstants.conversationsCollection)
         .doc(conversationId)
@@ -297,6 +338,38 @@ class FirestoreService {
     for (var doc in query.docs) {
       batch.update(doc.reference, {'isRead': true});
     }
+    await batch.commit();
+  }
+
+  Future<void> notifyAllUsers({
+    required String title,
+    required String body,
+    required NotificationType type,
+    String? relatedId,
+    required String senderId,
+    required String senderName,
+  }) async {
+    final userIds = await getAllUserIds();
+    final batch = _firestore.batch();
+    
+    for (var userId in userIds) {
+      if (userId == senderId) continue; // Don't notify the sender
+      
+      final docRef = _firestore.collection(AppConstants.notificationsCollection).doc();
+      final notification = NotificationModel(
+        id: docRef.id,
+        userId: userId,
+        senderId: senderId,
+        senderName: senderName,
+        title: title,
+        body: body,
+        type: type,
+        createdAt: DateTime.now(),
+        relatedId: relatedId,
+      );
+      batch.set(docRef, notification.toFirestore());
+    }
+    
     await batch.commit();
   }
 
@@ -546,8 +619,6 @@ class FirestoreService {
     }
     return ids;
   }
-
-
 
   Stream<List<JobModel>> getJobsStream() {
     return _firestore

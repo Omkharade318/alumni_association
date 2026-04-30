@@ -21,6 +21,17 @@ class AuthProvider with ChangeNotifier {
   }
 
   void _init() {
+    print('AuthProvider: Starting initialization');
+    
+    // Safety timeout: ensure _isInitialized is set to true even if authStateChanges hangs
+    Future.delayed(const Duration(seconds: 5), () {
+      if (!_isInitialized) {
+        print('AuthProvider: Initialization safety timeout reached');
+        _isInitialized = true;
+        notifyListeners();
+      }
+    });
+
     _authService.authStateChanges.listen((user) async {
       // Important: authStateChanges can fire during sign-in/out transitions.
       // We should not set a persistent UI error based on transient null/refresh states.

@@ -12,7 +12,10 @@ class EventsCalendarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _EventsCalendarContent();
+    return const Scaffold(
+      backgroundColor: Color(0xFFF9FAFB), // Modern soft background
+      body: _EventsCalendarContent(),
+    );
   }
 }
 
@@ -30,60 +33,102 @@ class _EventsCalendarContentState extends State<_EventsCalendarContent> {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TableCalendar(
-            firstDay: DateTime(2020),
-            lastDay: DateTime(2030),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selected, focused) {
-              setState(() {
-                _selectedDay = selected;
-                _focusedDay = focused;
-              });
-            },
-            calendarStyle: CalendarStyle(
-              selectedDecoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
-              todayDecoration: BoxDecoration(
-                color: AppTheme.primaryRed.withOpacity(0.5),
-                shape: BoxShape.circle,
+          // Modern Calendar Card
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TableCalendar(
+              firstDay: DateTime(2020),
+              lastDay: DateTime(2035),
+              focusedDay: _focusedDay,
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selected, focused) {
+                setState(() {
+                  _selectedDay = selected;
+                  _focusedDay = focused;
+                });
+              },
+              calendarStyle: CalendarStyle(
+                selectedDecoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
+                todayDecoration: BoxDecoration(
+                  color: AppTheme.primaryRed.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                todayTextStyle: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold),
+                outsideDaysVisible: false,
+              ),
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                titleTextStyle: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                leftChevronIcon: Icon(Icons.chevron_left_rounded, color: Colors.black87),
+                rightChevronIcon: Icon(Icons.chevron_right_rounded, color: Colors.black87),
               ),
             ),
-            headerStyle: HeaderStyle(
-              formatButtonVisible: false,
-              titleCentered: true,
+          ),
+          const SizedBox(height: 32),
+
+          const Padding(
+            padding: EdgeInsets.only(left: 4),
+            child: Text(
+              'Upcoming Events',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5),
             ),
           ),
-          const SizedBox(height: 24),
-          const Text('Upcoming Events', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+
           StreamBuilder<List<EventModel>>(
             stream: FirestoreService().getEventsStream(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData) {
+                return const Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
               final events = snapshot.data!
                   .where((e) => e.date.isAfter(DateTime.now().subtract(const Duration(days: 1))))
                   .toList();
+
               if (events.isEmpty) {
-                return Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: AppTheme.backgroundWhite,
-                    borderRadius: BorderRadius.circular(12),
+                return Center(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 32),
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                        child: Icon(Icons.event_busy_rounded, size: 48, color: Colors.grey.shade400),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text('No upcoming events', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      Text('Check back later for new schedules.', style: TextStyle(color: Colors.grey.shade500)),
+                    ],
                   ),
-                  child: const Center(child: Text('No upcoming events')),
                 );
               }
-              return Column(
-                children: events
-                    .map((e) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _EventCard(event: e),
-                        ))
-                    .toList(),
+
+              return ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: events.length,
+                itemBuilder: (context, i) => _EventCard(event: events[i]),
               );
             },
           ),
@@ -100,49 +145,94 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => EventDetailScreen(event: event)),
+    final String month = DateFormat('MMM').format(event.date).toUpperCase();
+    final String day = DateFormat('dd').format(event.date);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.dividerGray),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryRed.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Center(
-                child: Text(
-                  '${event.date.day}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryRed),
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(event.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${DateFormat('MMM d, yyyy').format(event.date)} • ${event.time} • ${event.location}',
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textGray),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => EventDetailScreen(event: event)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Visual Date Block
+                Container(
+                  width: 64,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryRed.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ],
-              ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(month, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryRed)),
+                      const SizedBox(height: 2),
+                      Text(day, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.primaryRed, letterSpacing: -0.5)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Event Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.title,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87, height: 1.2),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(event.time, style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 14, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              event.location,
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -160,13 +250,19 @@ class EventDetailScreen extends StatelessWidget {
     final firestore = FirestoreService();
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: AppTheme.primaryRed,
-        foregroundColor: AppTheme.white,
-        title: const Text('Event Details'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 22),
           onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Event Details',
+          style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
       body: StreamBuilder<EventModel?>(
@@ -180,89 +276,133 @@ class EventDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Edge-to-Edge Header Image
                 if (currentEvent.imageUrl != null)
-                  Image.network(currentEvent.imageUrl!, height: 250, fit: BoxFit.cover)
+                  Image.network(currentEvent.imageUrl!, height: 260, fit: BoxFit.cover)
                 else
                   Container(
-                    height: 200,
-                    color: AppTheme.primaryRed.withOpacity(0.2),
+                    height: 240,
+                    color: AppTheme.primaryRed.withOpacity(0.05),
                     child: Center(
-                      child: Icon(Icons.event, size: 80, color: AppTheme.primaryRed.withOpacity(0.5)),
+                      child: Icon(Icons.event_rounded, size: 80, color: AppTheme.primaryRed.withOpacity(0.4)),
                     ),
                   ),
+
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Title & Attendees Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               currentEvent.title,
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, height: 1.2, letterSpacing: -0.5),
                             ),
                           ),
+                          const SizedBox(width: 16),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryRed.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(20),
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(
-                              '${currentEvent.attendees.length} attending',
-                              style: const TextStyle(color: AppTheme.primaryRed, fontWeight: FontWeight.bold, fontSize: 12),
+                            child: Column(
+                              children: [
+                                Icon(Icons.people_alt_rounded, size: 18, color: Colors.green.shade700),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${currentEvent.attendees.length}',
+                                  style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
+
+                      // Description
                       Text(
                         currentEvent.description,
-                        style: const TextStyle(fontSize: 15, height: 1.5, color: AppTheme.textDark),
+                        style: TextStyle(fontSize: 15, height: 1.6, color: Colors.grey.shade800),
                       ),
-                      const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      _InfoRow(icon: Icons.calendar_today, text: DateFormat('EEEE, MMMM d, yyyy').format(currentEvent.date)),
-                      _InfoRow(icon: Icons.access_time, text: currentEvent.time),
-                      _InfoRow(icon: Icons.location_on, text: currentEvent.location),
                       const SizedBox(height: 32),
+
+                      const Text('When & Where', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+
+                      // Modern Info Rows
+                      _buildInfoTile(
+                        icon: Icons.calendar_today_rounded,
+                        title: 'Date',
+                        subtitle: DateFormat('EEEE, MMMM d, yyyy').format(currentEvent.date),
+                      ),
+                      _buildInfoTile(
+                        icon: Icons.access_time_rounded,
+                        title: 'Time',
+                        subtitle: currentEvent.time,
+                      ),
+                      _buildInfoTile(
+                        icon: Icons.location_on_rounded,
+                        title: 'Location',
+                        subtitle: currentEvent.location,
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // RSVP Button
                       SizedBox(
                         width: double.infinity,
-                        height: 50,
+                        height: 56,
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isAttending ? Colors.green : AppTheme.primaryRed,
+                            backgroundColor: isAttending ? Colors.green.shade600 : AppTheme.primaryRed,
                             foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                           onPressed: user == null
                               ? null
                               : () async {
-                                  final newStatus = !isAttending;
-                                  await firestore.rsvpEvent(currentEvent.id, user.uid, newStatus);
-                                  
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(newStatus 
-                                          ? 'You are now attending this event!' 
-                                          : 'You have cancelled your attendance.'),
-                                        behavior: SnackBarBehavior.floating,
-                                        backgroundColor: newStatus ? Colors.green : Colors.black87,
-                                      ),
-                                    );
-                                  }
-                                },
-                          child: Text(
-                            isAttending ? 'Attending' : 'Attend',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            final newStatus = !isAttending;
+                            await firestore.rsvpEvent(currentEvent.id, user.uid, newStatus);
+
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    newStatus
+                                        ? 'You are now attending this event!'
+                                        : 'You have cancelled your RSVP.',
+                                    style: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  backgroundColor: newStatus ? Colors.green.shade700 : Colors.black87,
+                                ),
+                              );
+                            }
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(isAttending ? Icons.check_circle_outline_rounded : Icons.event_available_rounded),
+                              const SizedBox(width: 8),
+                              Text(
+                                isAttending ? 'Attending' : 'RSVP Now',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -273,23 +413,33 @@ class EventDetailScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _InfoRow({required this.icon, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
+  // Helper widget for polished info rows
+  Widget _buildInfoTile({required IconData icon, required String title, required String subtitle}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: AppTheme.primaryRed),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text)),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 20, color: Colors.grey.shade700),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade500)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87)),
+              ],
+            ),
+          ),
         ],
       ),
     );

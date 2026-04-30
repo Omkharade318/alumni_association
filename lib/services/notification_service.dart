@@ -7,6 +7,8 @@ import '../screens/chat_screen.dart';
 import '../screens/messaging_screen.dart';
 import '../utils/constants.dart';
 import '../screens/connections_screen.dart';
+import '../screens/donation_screen.dart';
+import '../screens/events_calendar_screen.dart';
 import '../services/firestore_service.dart';
 
 // Top-level function for background messaging (must be top-level)
@@ -70,6 +72,14 @@ class NotificationService {
           navigatorKey.currentState?.push(
             MaterialPageRoute(builder: (_) => const ConnectionsScreen(initialTab: 1)),
           );
+        } else if (payload == 'donation') {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(builder: (_) => const DonationScreen()),
+          );
+        } else if (payload == 'event') {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(builder: (_) => const EventsCalendarScreen()),
+          );
         }
       },
     );
@@ -85,9 +95,13 @@ class NotificationService {
     );
 
     // 5. Handle app opened from terminated state via notification
-    final RemoteMessage? initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage != null) {
-      Future.delayed(const Duration(seconds: 1), () => _handleMessage(initialMessage));
+    try {
+      final RemoteMessage? initialMessage = await _fcm.getInitialMessage().timeout(const Duration(seconds: 3));
+      if (initialMessage != null) {
+        Future.delayed(const Duration(seconds: 1), () => _handleMessage(initialMessage));
+      }
+    } catch (e) {
+      print('Error getting initial message: $e');
     }
   }
 
@@ -122,7 +136,11 @@ class NotificationService {
           senderName: senderName,
           title: title,
           body: body,
-          type: type == 'connectionRequest' ? NotificationType.connectionRequest : NotificationType.message,
+          type: type == 'connectionRequest' 
+              ? NotificationType.connectionRequest 
+              : (type == 'donation' 
+                  ? NotificationType.donation 
+                  : (type == 'event' ? NotificationType.event : NotificationType.message)),
           createdAt: DateTime.now(),
           relatedId: relatedId,
         ));
@@ -184,6 +202,14 @@ class NotificationService {
     } else if (type == 'connectionRequest') {
       navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const ConnectionsScreen(initialTab: 1)),
+      );
+    } else if (type == 'donation') {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const DonationScreen()),
+      );
+    } else if (type == 'event') {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const EventsCalendarScreen()),
       );
     }
   }
@@ -288,6 +314,24 @@ class NotificationService {
           context,
           MaterialPageRoute(
             builder: (_) => const ConnectionsScreen(initialTab: 1),
+          ),
+        );
+      }
+    } else if (notification.type == NotificationType.donation) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const DonationScreen(),
+          ),
+        );
+      }
+    } else if (notification.type == NotificationType.event) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const EventsCalendarScreen(),
           ),
         );
       }

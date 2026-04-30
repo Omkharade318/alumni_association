@@ -14,6 +14,7 @@ class UserModel {
   final String? degree;
   final String? profileImage;
   final DateTime? createdAt;
+  final DateTime? lastViewedDonations;
 
   UserModel({
     required this.uid,
@@ -29,6 +30,7 @@ class UserModel {
     this.degree,
     this.profileImage,
     this.createdAt,
+    this.lastViewedDonations,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -49,6 +51,9 @@ class UserModel {
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
+      lastViewedDonations: data['lastViewedDonations'] != null
+          ? (data['lastViewedDonations'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -67,6 +72,7 @@ class UserModel {
       'degree': degree,
       'profileImage': profileImage,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
+      'lastViewedDonations': lastViewedDonations != null ? Timestamp.fromDate(lastViewedDonations!) : null,
     };
   }
 
@@ -108,6 +114,7 @@ class UserModel {
     String? degree,
     String? profileImage,
     DateTime? createdAt,
+    DateTime? lastViewedDonations,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -123,6 +130,7 @@ class UserModel {
       degree: degree ?? this.degree,
       profileImage: profileImage ?? this.profileImage,
       createdAt: createdAt ?? this.createdAt,
+      lastViewedDonations: lastViewedDonations ?? this.lastViewedDonations,
     );
   }
 }

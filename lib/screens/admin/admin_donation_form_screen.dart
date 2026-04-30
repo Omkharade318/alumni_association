@@ -8,6 +8,8 @@ import '../../models/donation_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../utils/constants.dart';
+import '../../providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 class AdminDonationFormScreen extends StatefulWidget {
   final DonationModel? donation;
@@ -117,7 +119,8 @@ class _AdminDonationFormScreenState extends State<AdminDonationFormScreen> {
           collectedAmount: 0,
           createdAt: DateTime.now(),
         );
-        await firestore.createDonation(donation);
+        final adminName = context.read<AuthProvider>().currentUser?.name;
+        await firestore.createDonation(donation, senderId: context.read<AuthProvider>().currentUser?.uid, senderName: adminName);
       } else {
         await firestore.updateDonationDetails(widget.donation!.id, {
           'category': _category,
