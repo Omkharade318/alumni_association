@@ -1,8 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../utils/time_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+import '../utils/time_utils.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart';
@@ -23,37 +22,35 @@ class MessagingScreen extends StatelessWidget {
     }
 
     Widget body = Container(
-      color: Colors.white,
+      color: Colors.grey.shade50, // Soft modern off-white background
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Premium Search & Filter Row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Search chats...',
-                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
-                        prefixIcon: Icon(Icons.search, color: Colors.grey.shade400, size: 22),
-                        border: InputBorder.none,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      ),
-                    ),
-                  ),
+          // Premium Search Bar
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: TextField(
+                style: const TextStyle(fontSize: 16),
+                decoration: InputDecoration(
+                  hintText: 'Search conversations...',
+                  hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 15),
+                  prefixIcon: Icon(Icons.search_rounded, color: Colors.grey.shade400, size: 22),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                 ),
-                const SizedBox(width: 12),
-              ],
+              ),
             ),
           ),
+
+          // Divider below search
+          Container(height: 1, color: Colors.grey.shade200),
 
           // Chat List
           Expanded(
@@ -77,20 +74,23 @@ class MessagingScreen extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade50,
+                            color: Colors.white,
                             shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                            ],
                           ),
-                          child: Icon(Icons.forum_outlined, size: 64, color: Colors.grey.shade300),
+                          child: Icon(Icons.forum_rounded, size: 56, color: Colors.grey.shade400),
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'No messages yet',
-                          style: TextStyle(fontSize: 18, color: Colors.grey.shade800, fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 18, color: Colors.grey.shade800, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Start a conversation with an alumni.',
-                          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+                          'Connect with alumni to start chatting.',
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
                         ),
                       ],
                     ),
@@ -98,28 +98,30 @@ class MessagingScreen extends StatelessWidget {
                 }
 
                 return ListView.builder(
-                  padding: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   itemCount: docs.length,
                   itemBuilder: (_, i) {
                     final data = docs[i].data() as Map<String, dynamic>;
                     final participants = data['participants'] as List<dynamic>? ?? [];
                     final otherId = participants.firstWhere((p) => p != user.uid, orElse: () => '');
 
-                    return FutureBuilder<UserModel?>(
-                      future: FirestoreService().getUser(otherId.toString()),
+                    return StreamBuilder<UserModel?>(
+                      stream: FirestoreService().getUserStream(otherId.toString()),
                       builder: (ctx, userSnap) {
                         if (!userSnap.hasData) {
                           return const SizedBox(height: 84); // Prevents UI jumping
                         }
 
-                        final other = userSnap.data!;
+                        final other = userSnap.data;
+                        if (other == null) return const SizedBox.shrink();
+
                         final lastMessage = data['lastMessage'] as String? ?? 'Sent an attachment';
 
                         // Extract timestamp & unread counts
                         final timestamp = data['lastMessageAt'] as Timestamp?;
                         final timeString = timestamp != null
                             ? TimeUtils.formatTimestamp(timestamp.toDate())
-                            : ''; 
+                            : '';
 
                         final unreadCounts = data['unreadCounts'] as Map<String, dynamic>? ?? {};
                         final unreadCount = unreadCounts[user.uid] ?? 0;
@@ -129,8 +131,7 @@ class MessagingScreen extends StatelessWidget {
                           lastMessage: lastMessage,
                           timeString: timeString,
                           unreadCount: unreadCount,
-                          // Optional: Mock online status based on some data, or hardcode true to see the UI
-                          isOnline: i % 3 == 0,
+                          isOnline: i % 3 == 0, // Mock online status
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -186,33 +187,42 @@ class _ChatTile extends StatelessWidget {
     final bool hasUnread = unreadCount > 0;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8), // Adds space around the card
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16), // Rounded modern corners
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05), // Soft, modern shadow
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.03), // Diffused, premium shadow
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Material(
-        color: Colors.transparent, // Allows the container's white background to show through
+        color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16), // Keeps the ripple effect inside the rounded corners
+          borderRadius: BorderRadius.circular(20),
           highlightColor: Colors.grey.shade50,
           splashColor: Colors.grey.shade100,
           child: Padding(
-            padding: const EdgeInsets.all(16), // Inner padding for the card contents
+            padding: const EdgeInsets.all(16),
             child: Row(
               children: [
                 // Avatar with Online Status Indicator
                 Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    ProfileAvatar(imageUrl: user.profileImage, name: user.name, size: 56),
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                      child: ProfileAvatar(imageUrl: user.profileImage, name: user.name, size: 56),
+                    ),
                     if (isOnline)
                       Positioned(
                         bottom: 0,
@@ -244,7 +254,7 @@ class _ChatTile extends StatelessWidget {
                               user.name,
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
+                                fontWeight: hasUnread ? FontWeight.w800 : FontWeight.w600,
                                 color: Colors.black87,
                                 letterSpacing: -0.3,
                               ),
@@ -257,7 +267,7 @@ class _ChatTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               color: hasUnread ? AppTheme.primaryRed : Colors.grey.shade500,
-                              fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                              fontWeight: hasUnread ? FontWeight.bold : FontWeight.w500,
                             ),
                           ),
                         ],
@@ -271,22 +281,22 @@ class _ChatTile extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 color: hasUnread ? Colors.black87 : Colors.grey.shade600,
-                                fontWeight: hasUnread ? FontWeight.w500 : FontWeight.normal,
+                                fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
+                                height: 1.2,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
 
-                          // Unread Badge
+                          // Modern Pill Unread Badge
                           if (hasUnread) ...[
                             const SizedBox(width: 12),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: const BoxDecoration(
+                              decoration: const ShapeDecoration(
                                 color: AppTheme.primaryRed,
-                                shape: BoxShape.rectangle,
-                                borderRadius: BorderRadius.all(Radius.circular(10)),
+                                shape: StadiumBorder(),
                               ),
                               child: Text(
                                 unreadCount > 99 ? '99+' : unreadCount.toString(),

@@ -379,7 +379,7 @@ class EventDetailScreen extends StatelessWidget {
                                   content: Text(
                                     newStatus
                                         ? 'You are now attending this event!'
-                                        : 'You have cancelled your RSVP.',
+                                        : 'You have cancelled your attendance.',
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                   behavior: SnackBarBehavior.floating,
@@ -395,7 +395,7 @@ class EventDetailScreen extends StatelessWidget {
                               Icon(isAttending ? Icons.check_circle_outline_rounded : Icons.event_available_rounded),
                               const SizedBox(width: 8),
                               Text(
-                                isAttending ? 'Attending' : 'RSVP Now',
+                                isAttending ? 'Attending' : 'Attend',
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ],

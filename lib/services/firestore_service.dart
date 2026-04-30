@@ -25,6 +25,14 @@ class FirestoreService {
     return doc.exists ? UserModel.fromFirestore(doc) : null;
   }
 
+  Stream<UserModel?> getUserStream(String uid) {
+    return _firestore
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .snapshots()
+        .map((doc) => doc.exists ? UserModel.fromFirestore(doc) : null);
+  }
+
   Future<List<String>> getAllUserIds() async {
     final query = await _firestore.collection(AppConstants.usersCollection).get();
     return query.docs.map((doc) => doc.id).toList();
@@ -125,6 +133,27 @@ class FirestoreService {
         .collection('comments')
         .add(comment.toFirestore());
     await addComment(postId);
+  }
+
+  Future<void> updateComment(String postId, String commentId, String newContent) async {
+    await _firestore
+        .collection(AppConstants.postsCollection)
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .update({'content': newContent});
+  }
+
+  Future<void> deleteComment(String postId, String commentId) async {
+    await _firestore
+        .collection(AppConstants.postsCollection)
+        .doc(postId)
+        .collection('comments')
+        .doc(commentId)
+        .delete();
+    await _firestore.collection(AppConstants.postsCollection).doc(postId).update({
+      'commentCount': FieldValue.increment(-1),
+    });
   }
 
   Stream<EventModel?> getEventStream(String eventId) {

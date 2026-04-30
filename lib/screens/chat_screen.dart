@@ -83,36 +83,42 @@ class _ChatScreenState extends State<ChatScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         titleSpacing: 0,
-        title: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: widget.otherUser)),
-          ),
-          child: Row(
-            children: [
-              ProfileAvatar(imageUrl: widget.otherUser.profileImage, name: widget.otherUser.name, size: 40),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.otherUser.name,
-                      style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      widget.otherUser.jobTitle ?? 'Alumni', // Subtitle context
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.normal),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+        title: StreamBuilder<UserModel?>(
+          stream: _firestore.getUserStream(widget.otherUser.uid),
+          builder: (context, snapshot) {
+            final liveUser = snapshot.data ?? widget.otherUser;
+            return GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: liveUser)),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  ProfileAvatar(imageUrl: liveUser.profileImage, name: liveUser.name, size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          liveUser.name,
+                          style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          liveUser.jobTitle ?? 'Alumni', // Subtitle context
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12, fontWeight: FontWeight.normal),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         actions: [
           IconButton(

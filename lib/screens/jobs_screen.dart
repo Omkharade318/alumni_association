@@ -32,12 +32,12 @@ class JobsScreen extends StatelessWidget {
                 if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
                 final jobs = snapshot.data!;
                 if (jobs.isEmpty) {
-                  return Center(
+                  return const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.work_outline, size: 64, color: AppTheme.textLight),
-                        const SizedBox(height: 16),
+                        SizedBox(height: 16),
                         Text('No job postings yet', style: TextStyle(color: AppTheme.textGray)),
                       ],
                     ),

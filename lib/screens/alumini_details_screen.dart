@@ -7,14 +7,30 @@ import '../services/firestore_service.dart';
 import '../widgets/profile_avatar.dart';
 import '../widgets/app_app_bar.dart';
 import 'chat_screen.dart';
-import 'messaging_screen.dart';
 import 'edit_profile_screen.dart';
-// Assuming you have ChatScreen imported here
 
 class AlumniDetailScreen extends StatelessWidget {
   final UserModel alumni;
 
   const AlumniDetailScreen({super.key, required this.alumni});
+
+  String _formatProfessionalDetails() {
+    final hasCompany = alumni.company != null && alumni.company!.isNotEmpty;
+    final hasTitle = alumni.jobTitle != null && alumni.jobTitle!.isNotEmpty;
+    if (hasCompany && hasTitle) return '${alumni.jobTitle} at ${alumni.company}';
+    if (hasCompany) return alumni.company!;
+    if (hasTitle) return alumni.jobTitle!;
+    return 'Professional details not specified';
+  }
+
+  String _formatAcademicDetails() {
+    final hasBranch = alumni.branch != null && alumni.branch!.isNotEmpty;
+    final hasBatch = alumni.batch != null && alumni.batch!.isNotEmpty;
+    if (hasBranch && hasBatch) return '${alumni.branch} • Batch of ${alumni.batch}';
+    if (hasBranch) return alumni.branch!;
+    if (hasBatch) return 'Batch of ${alumni.batch}';
+    return 'Academic details not specified';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,14 +38,18 @@ class AlumniDetailScreen extends StatelessWidget {
     final isAdmin = currentUser?.isAdmin ?? false;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.grey.shade50, // Modern off-white background
       appBar: AppAppBar(
-        title: 'Alumni Profile', 
+        title: 'Alumni Profile',
         showBack: true,
         actions: [
           if (isAdmin)
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                child: Icon(Icons.edit_rounded, color: Colors.grey.shade800, size: 20),
+              ),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => EditProfileScreen(user: alumni)),
@@ -43,7 +63,7 @@ class AlumniDetailScreen extends StatelessWidget {
             // Top Header Profile Section
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+              padding: const EdgeInsets.only(top: 24, bottom: 32, left: 24, right: 24),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
@@ -52,28 +72,36 @@ class AlumniDetailScreen extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Column(
                 children: [
                   Hero(
-                    tag: 'profile_${alumni.uid}', // Optional: smooth transition if coming from a list
-                    child: ProfileAvatar(imageUrl: alumni.profileImage, name: alumni.name, size: 120),
+                    tag: 'profile_${alumni.uid}',
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5)),
+                        ],
+                      ),
+                      child: ProfileAvatar(imageUrl: alumni.profileImage, name: alumni.name, size: 120),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Text(
                     alumni.name,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: Colors.black87),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
-                    '${alumni.jobTitle ?? 'Alumni'} ${alumni.company != null ? 'at ${alumni.company}' : ''}',
+                    _formatProfessionalDetails(),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16, color: AppTheme.textGray, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade600, fontWeight: FontWeight.w500, height: 1.4),
                   ),
                   const SizedBox(height: 24),
 
@@ -91,57 +119,28 @@ class AlumniDetailScreen extends StatelessWidget {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (status == null)
-                            Expanded(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.person_add, size: 20),
-                                label: const Text('Connect', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryRed,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                onPressed: () {
-                                  final currentUserId = context.read<AuthProvider>().currentUser?.uid;
-                                  if (currentUserId != null) {
-                                    FirestoreService().addConnection(currentUserId, alumni.uid);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Connection request sent to ${alumni.name}')),
-                                    );
-                                    // Refresh UI
-                                    (context as Element).markNeedsBuild();
-                                  }
-                                },
-                              ),
-                            )
-                          else if (isPending)
-                            const Expanded(
-                              child: Chip(
-                                label: Text('Request Sent'),
-                                backgroundColor: Colors.amber,
-                                labelStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                avatar: Icon(Icons.hourglass_empty, color: Colors.white, size: 16),
-                              ),
-                            )
-                          else
-                            const Expanded(
-                              child: Chip(
-                                label: Text('Connected'),
-                                backgroundColor: Colors.green,
-                                labelStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                avatar: Icon(Icons.check, color: Colors.white, size: 16),
+                          Expanded(
+                            child: SizedBox(
+                              height: 48, // Fixed height to match secondary buttons perfectly
+                              child: _buildPrimaryStatusButton(
+                                context,
+                                status: status,
+                                isConnected: isConnected,
+                                isPending: isPending,
                               ),
                             ),
+                          ),
                           const SizedBox(width: 12),
                           _SecondaryActionButton(
-                            icon: isConnected ? Icons.chat_bubble_outline : Icons.lock_outline,
-                            color: isConnected ? null : Colors.grey,
+                            icon: isConnected ? Icons.chat_bubble_rounded : Icons.lock_rounded,
+                            color: isConnected ? AppTheme.primaryRed : Colors.grey.shade400,
                             onPressed: () async {
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(isPending ? 'Wait for connection approval' : 'You can only message connections')),
+                                  SnackBar(
+                                    content: Text(isPending ? 'Wait for connection approval' : 'You can only message connections'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
                                 );
                                 return;
                               }
@@ -164,12 +163,15 @@ class AlumniDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           _SecondaryActionButton(
-                            icon: isConnected ? Icons.call_outlined : Icons.lock_outline,
-                            color: isConnected ? null : Colors.grey,
+                            icon: isConnected ? Icons.call_rounded : Icons.lock_rounded,
+                            color: isConnected ? AppTheme.primaryRed : Colors.grey.shade400,
                             onPressed: () {
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(isPending ? 'Contact features unlock after connecting' : 'Connect to unlock contact features')),
+                                  SnackBar(
+                                    content: Text(isPending ? 'Contact features unlock after connecting' : 'Connect to unlock contact features'),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
                                 );
                                 return;
                               }
@@ -194,77 +196,61 @@ class AlumniDetailScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Professional Details',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.dividerGray.withOpacity(0.5)),
-                    ),
-                    child: Column(
-                      children: [
-                        _InfoTile(
-                          icon: Icons.work_outline,
-                          title: 'Currently Working In',
-                          content: '${alumni.company ?? '-'} | ${alumni.jobTitle ?? '-'}',
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Divider(height: 1, color: AppTheme.dividerGray),
-                        ),
-                        _InfoTile(
-                          icon: Icons.school_outlined,
-                          title: 'Pursued',
-                          content: '${alumni.branch ?? '-'} | ${alumni.batch ?? '-'}',
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Divider(height: 1, color: AppTheme.dividerGray),
-                        ),
-                        _InfoTile(
-                          icon: Icons.location_on_outlined,
-                          title: 'Based In',
-                          content: alumni.city ?? '-',
-                        ),
-                      ],
-                    ),
+                  _buildModernCard(
+                    children: [
+                      _InfoTile(
+                        icon: Icons.work_outline_rounded,
+                        title: 'Currently Working As ',
+                        content: _formatProfessionalDetails(),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Divider(height: 1, color: Colors.black12),
+                      ),
+                      _InfoTile(
+                        icon: Icons.school_outlined,
+                        title: 'Academic Background',
+                        content: _formatAcademicDetails(),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Divider(height: 1, color: Colors.black12),
+                      ),
+                      _InfoTile(
+                        icon: Icons.location_on_outlined,
+                        title: 'Based In',
+                        content: (alumni.city != null && alumni.city!.isNotEmpty) ? alumni.city! : 'Location not specified',
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 24),
 
                   const Text(
                     'Contact Information',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppTheme.dividerGray.withOpacity(0.5)),
-                    ),
-                    child: Column(
-                      children: [
-                        _InfoTile(
-                          icon: Icons.email_outlined,
-                          title: 'Email Address',
-                          content: alumni.email,
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Divider(height: 1, color: AppTheme.dividerGray),
-                        ),
-                        _InfoTile(
-                          icon: Icons.phone_outlined,
-                          title: 'Phone Number',
-                          content: alumni.phone ?? 'Not provided',
-                        ),
-                      ],
-                    ),
+                  _buildModernCard(
+                    children: [
+                      _InfoTile(
+                        icon: Icons.email_outlined,
+                        title: 'Email Address',
+                        content: alumni.email,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        child: Divider(height: 1, color: Colors.black12),
+                      ),
+                      _InfoTile(
+                        icon: Icons.phone_outlined,
+                        title: 'Phone Number',
+                        content: (alumni.phone != null && alumni.phone!.isNotEmpty) ? alumni.phone! : 'Not provided',
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 40), // Bottom padding
                 ],
@@ -272,6 +258,85 @@ class AlumniDetailScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Helper widget to build consistent modern cards
+  Widget _buildModernCard({required List<Widget> children}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
+    );
+  }
+
+  // Smart primary button that changes style based on connection status
+  Widget _buildPrimaryStatusButton(BuildContext context, {required String? status, required bool isConnected, required bool isPending}) {
+    if (status == null) {
+      return ElevatedButton.icon(
+        icon: const Icon(Icons.person_add_rounded, size: 20),
+        label: const Text('Connect', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryRed,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        onPressed: () {
+          final currentUserId = context.read<AuthProvider>().currentUser?.uid;
+          if (currentUserId != null) {
+            FirestoreService().addConnection(currentUserId, alumni.uid);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Connection request sent to ${alumni.name}'), behavior: SnackBarBehavior.floating),
+            );
+            (context as Element).markNeedsBuild();
+          }
+        },
+      );
+    }
+
+    if (isPending) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.amber.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.amber.shade200),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.hourglass_empty_rounded, color: Colors.amber.shade700, size: 18),
+            const SizedBox(width: 8),
+            Text('Request Sent', style: TextStyle(color: Colors.amber.shade800, fontWeight: FontWeight.bold, fontSize: 15)),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_rounded, color: Colors.green.shade700, size: 18),
+          const SizedBox(width: 8),
+          Text('Connected', style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 15)),
+        ],
       ),
     );
   }
@@ -287,17 +352,19 @@ class _SecondaryActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = color ?? AppTheme.primaryRed;
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        height: 48,
+        width: 48,
         decoration: BoxDecoration(
-          color: (color ?? AppTheme.primaryRed).withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: (color ?? AppTheme.primaryRed).withOpacity(0.2)),
+          color: effectiveColor.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: effectiveColor.withOpacity(0.2)),
         ),
-        child: Icon(icon, color: color ?? AppTheme.primaryRed, size: 24),
+        child: Icon(icon, color: effectiveColor, size: 22),
       ),
     );
   }
@@ -320,7 +387,7 @@ class _InfoTile extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(icon, size: 20, color: Colors.grey.shade700),
         ),
@@ -331,12 +398,12 @@ class _InfoTile extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, color: AppTheme.textGray, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
               const SizedBox(height: 4),
               Text(
                 content,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
               ),
             ],
           ),
