@@ -15,6 +15,7 @@ class AuthProvider with ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
 
   AuthProvider() {
     _init();
@@ -373,6 +374,12 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> data) async {
+    if (_currentUser == null) return;
+    await _authService.updateProfile(_currentUser!.uid, data);
+    await refreshUser();
   }
 
   Future<void> updateProfileImage(String url) async {

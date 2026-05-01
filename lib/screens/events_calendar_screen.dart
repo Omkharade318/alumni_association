@@ -8,13 +8,21 @@ import '../services/firestore_service.dart';
 import '../models/event_model.dart';
 
 class EventsCalendarScreen extends StatelessWidget {
-  const EventsCalendarScreen({super.key});
+  final bool showAppBar;
+  const EventsCalendarScreen({super.key, this.showAppBar = true});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFF9FAFB), // Modern soft background
-      body: _EventsCalendarContent(),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: showAppBar 
+        ? AppBar(
+            title: const Text('Events Calendar'),
+            backgroundColor: AppTheme.primaryRed,
+            foregroundColor: Colors.white,
+          )
+        : null,
+      body: const _EventsCalendarContent(),
     );
   }
 }

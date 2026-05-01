@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/post_model.dart';
+import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/profile_avatar.dart';
 import 'admin_post_edit_screen.dart';
@@ -159,28 +160,37 @@ class _AdminPostCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Author Header
-            Row(
-              children: [
-                ProfileAvatar(imageUrl: post.userImage, name: post.userName, size: 40),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        post.userName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+            StreamBuilder<UserModel?>(
+              stream: FirestoreService().getUserStream(post.userId),
+              builder: (context, snapshot) {
+                final liveUser = snapshot.data;
+                final displayName = liveUser?.name ?? post.userName;
+                final displayImage = liveUser?.profileImage ?? post.userImage;
+
+                return Row(
+                  children: [
+                    ProfileAvatar(imageUrl: displayImage, name: displayName, size: 40),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            DateFormat('MMM dd, yyyy • h:mm a').format(post.createdAt),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          ),
+                        ],
                       ),
-                      Text(
-                        DateFormat('MMM dd, yyyy • h:mm a').format(post.createdAt),
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 12),
 

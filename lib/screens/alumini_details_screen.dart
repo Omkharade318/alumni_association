@@ -35,7 +35,13 @@ class AlumniDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentUser = context.watch<AuthProvider>().currentUser;
-    final isAdmin = currentUser?.isAdmin ?? false;
+    final isAdmin = context.watch<AuthProvider>().isAdmin;
+
+    final isOwnProfile = currentUser?.uid == alumni.uid;
+    final canSeeEmail = alumni.showEmail || isOwnProfile || isAdmin;
+    final canSeePhone = alumni.showPhone || isOwnProfile || isAdmin;
+    final canSeeCompany = alumni.showCompany || isOwnProfile || isAdmin;
+    final canSeeLocation = alumni.showLocation || isOwnProfile || isAdmin;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50, // Modern off-white background
@@ -43,12 +49,12 @@ class AlumniDetailScreen extends StatelessWidget {
         title: 'Alumni Profile',
         showBack: true,
         actions: [
-          if (isAdmin)
+          if (isAdmin || isOwnProfile)
             IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                child: Icon(Icons.edit_rounded, color: Colors.grey.shade800, size: 20),
+                child: Icon(isOwnProfile ? Icons.edit_rounded : Icons.admin_panel_settings, color: Colors.grey.shade800, size: 20),
               ),
               onPressed: () => Navigator.push(
                 context,
@@ -99,7 +105,7 @@ class AlumniDetailScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _formatProfessionalDetails(),
+                    canSeeCompany ? _formatProfessionalDetails() : 'Professional details private',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, color: Colors.grey.shade600, fontWeight: FontWeight.w500, height: 1.4),
                   ),
@@ -119,22 +125,27 @@ class AlumniDetailScreen extends StatelessWidget {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(
-                            child: SizedBox(
-                              height: 48, // Fixed height to match secondary buttons perfectly
-                              child: _buildPrimaryStatusButton(
-                                context,
-                                status: status,
-                                isConnected: isConnected,
-                                isPending: isPending,
+                          if (!isOwnProfile)
+                            Expanded(
+                              child: SizedBox(
+                                height: 48,
+                                child: _buildPrimaryStatusButton(
+                                  context,
+                                  status: status,
+                                  isConnected: isConnected,
+                                  isPending: isPending,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
+                          if (!isOwnProfile) const SizedBox(width: 12),
                           _SecondaryActionButton(
-                            icon: isConnected ? Icons.chat_bubble_rounded : Icons.lock_rounded,
-                            color: isConnected ? AppTheme.primaryRed : Colors.grey.shade400,
+                            icon: isConnected || isOwnProfile ? Icons.chat_bubble_rounded : Icons.lock_rounded,
+                            color: isConnected || isOwnProfile ? AppTheme.primaryRed : Colors.grey.shade400,
                             onPressed: () async {
+                              if (isOwnProfile) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You cannot message yourself')));
+                                return;
+                              }
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -163,9 +174,10 @@ class AlumniDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                           _SecondaryActionButton(
-                            icon: isConnected ? Icons.call_rounded : Icons.lock_rounded,
-                            color: isConnected ? AppTheme.primaryRed : Colors.grey.shade400,
+                            icon: isConnected || isOwnProfile ? Icons.call_rounded : Icons.lock_rounded,
+                            color: isConnected || isOwnProfile ? AppTheme.primaryRed : Colors.grey.shade400,
                             onPressed: () {
+                              if (isOwnProfile) return;
                               if (!isConnected) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -204,7 +216,7 @@ class AlumniDetailScreen extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.work_outline_rounded,
                         title: 'Currently Working As ',
-                        content: _formatProfessionalDetails(),
+                        content: canSeeCompany ? _formatProfessionalDetails() : 'Private',
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -222,7 +234,9 @@ class AlumniDetailScreen extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.location_on_outlined,
                         title: 'Based In',
-                        content: (alumni.city != null && alumni.city!.isNotEmpty) ? alumni.city! : 'Location not specified',
+                        content: canSeeLocation 
+                          ? ((alumni.city != null && alumni.city!.isNotEmpty) ? alumni.city! : 'Not specified')
+                          : 'Private',
                       ),
                     ],
                   ),
@@ -239,7 +253,7 @@ class AlumniDetailScreen extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.email_outlined,
                         title: 'Email Address',
-                        content: alumni.email,
+                        content: canSeeEmail ? alumni.email : 'Private',
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 16),
@@ -248,7 +262,9 @@ class AlumniDetailScreen extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.phone_outlined,
                         title: 'Phone Number',
-                        content: (alumni.phone != null && alumni.phone!.isNotEmpty) ? alumni.phone! : 'Not provided',
+                        content: canSeePhone 
+                          ? ((alumni.phone != null && alumni.phone!.isNotEmpty) ? alumni.phone! : 'Not provided')
+                          : 'Private',
                       ),
                     ],
                   ),

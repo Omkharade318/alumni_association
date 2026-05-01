@@ -29,7 +29,7 @@ class AdminGateScreen extends StatelessWidget {
       );
     }
 
-    final isAdmin = auth.currentUser?.isAdmin == true;
+    final isAdmin = auth.isAdmin;
     if (!isAdmin) {
       return Scaffold(
         appBar: AppBar(title: const Text('Admin')),

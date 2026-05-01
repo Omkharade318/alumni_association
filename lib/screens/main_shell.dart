@@ -40,7 +40,7 @@ class _MainShellState extends State<MainShell> {
       HomeScreen(onMenuTap: () => _scaffoldKey.currentState?.openDrawer()),
       const FeedScreen(),
       const MessagingScreen(hideAppBar: true),
-      const EventsCalendarScreen(),
+      const EventsCalendarScreen(showAppBar: false),
       const ProfileScreen(),
     ];
 

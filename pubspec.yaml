@@ -27,6 +27,7 @@ dependencies:
   rxdart: ^0.27.7
   flutter_local_notifications: ^17.2.4
   share_plus: ^7.2.2
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

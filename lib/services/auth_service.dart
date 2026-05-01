@@ -393,6 +393,10 @@ class AuthService {
     return await _getUserWithRetry(uid);
   }
 
+  Future<void> updateProfile(String uid, Map<String, dynamic> data) async {
+    await _firestore.updateUser(uid, data);
+  }
+
   Future<void> updateProfileImage(String uid, String url) async {
     await _firestore.updateUser(uid, {'profileImage': url});
   }

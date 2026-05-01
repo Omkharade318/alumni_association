@@ -234,8 +234,8 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
     double amount;
     if (_useCustomAmount) {
       amount = double.tryParse(_customAmountController.text.trim()) ?? 0;
-      if (amount < 500) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum donation is ₹500')));
+      if (amount < 1) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Minimum donation is ₹1')));
         return;
       }
     } else {
@@ -428,7 +428,7 @@ class _DonationDetailScreenState extends State<DonationDetailScreen> {
                         labelStyle: TextStyle(fontSize: 16, color: Colors.grey.shade500, fontWeight: FontWeight.normal),
                         prefixText: '₹ ',
                         prefixStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                        hintText: 'Min. 500',
+                        hintText: 'Min. 1',
                         filled: true,
                         fillColor: Colors.grey.shade100,
                         border: OutlineInputBorder(

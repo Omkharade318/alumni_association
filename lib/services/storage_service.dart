@@ -78,6 +78,49 @@ class StorageService {
   }) async {
     return uploadImage('posts/$userId', file, onProgress: onProgress);
   }
+
+  Future<void> deleteImage(String path) async {
+    try {
+      await _client.storage.from(_bucketName).remove([path]);
+    } catch (e) {
+      print('SUPABASE_DELETE_ERROR: $e');
+    }
+  }
+
+  Future<void> deleteImageFromUrl(String url) async {
+    if (url.isEmpty || !url.contains('supabase')) return;
+    try {
+      final uri = Uri.parse(url);
+      final pathSegments = uri.pathSegments;
+      
+      // Supabase Storage URLs follow: .../storage/v1/object/[public|authenticated]/[bucket]/[path]
+      // Or sometimes directly: .../storage/v1/object/[bucket]/[path]
+      
+      int bucketIndex = -1;
+      if (pathSegments.contains('public')) {
+        bucketIndex = pathSegments.indexOf('public') + 1;
+      } else if (pathSegments.contains('authenticated')) {
+        bucketIndex = pathSegments.indexOf('authenticated') + 1;
+      } else {
+        final objectIndex = pathSegments.indexOf('object');
+        if (objectIndex != -1 && objectIndex < pathSegments.length - 1) {
+          // If the next segment is not public/authenticated, it's the bucket
+          bucketIndex = objectIndex + 1;
+        }
+      }
+
+      if (bucketIndex != -1 && bucketIndex < pathSegments.length - 1) {
+        // The segments after the bucket are the actual file path
+        final path = pathSegments.sublist(bucketIndex + 1).join('/');
+        // Also ensure the bucket name matches or we log it
+        final extractedBucket = pathSegments[bucketIndex];
+        
+        await _client.storage.from(extractedBucket).remove([Uri.decodeFull(path)]);
+      }
+    } catch (e) {
+      print('SUPABASE_URL_DELETE_ERROR: $e');
+    }
+  }
 }
 
 /// A custom MultipartRequest that tracks progress

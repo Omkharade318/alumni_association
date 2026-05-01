@@ -9,6 +9,7 @@ import '../utils/constants.dart';
 import '../screens/connections_screen.dart';
 import '../screens/donation_screen.dart';
 import '../screens/events_calendar_screen.dart';
+import '../screens/jobs_screen.dart';
 import '../services/firestore_service.dart';
 
 // Top-level function for background messaging (must be top-level)
@@ -80,6 +81,10 @@ class NotificationService {
           navigatorKey.currentState?.push(
             MaterialPageRoute(builder: (_) => const EventsCalendarScreen()),
           );
+        } else if (payload == 'job') {
+          navigatorKey.currentState?.push(
+            MaterialPageRoute(builder: (_) => const JobsScreen()),
+          );
         }
       },
     );
@@ -140,7 +145,9 @@ class NotificationService {
               ? NotificationType.connectionRequest 
               : (type == 'donation' 
                   ? NotificationType.donation 
-                  : (type == 'event' ? NotificationType.event : NotificationType.message)),
+                  : (type == 'event' 
+                      ? NotificationType.event 
+                      : (type == 'job' ? NotificationType.job : NotificationType.message))),
           createdAt: DateTime.now(),
           relatedId: relatedId,
         ));
@@ -186,6 +193,8 @@ class NotificationService {
     final senderId = message.data['senderId'];
     final userId = message.data['userId'];
 
+    print('NotificationService: Handling message of type $type');
+
     if (type == 'message' && relatedId != null && senderId != null) {
       final sender = await FirestoreService().getUser(senderId);
       if (sender != null) {
@@ -210,6 +219,10 @@ class NotificationService {
     } else if (type == 'event') {
       navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const EventsCalendarScreen()),
+      );
+    } else if (type == 'job') {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const JobsScreen()),
       );
     }
   }
@@ -292,6 +305,7 @@ class NotificationService {
   // ─── In-app notification tap navigation ──────────────────────────────────────
 
   void handleNotificationClick(BuildContext context, NotificationModel notification) async {
+    print('NotificationService: In-app click for type ${notification.type}');
     deleteNotification(notification.id);
 
     if (notification.type == NotificationType.message && notification.relatedId != null) {
@@ -332,6 +346,15 @@ class NotificationService {
           context,
           MaterialPageRoute(
             builder: (_) => const EventsCalendarScreen(),
+          ),
+        );
+      }
+    } else if (notification.type == NotificationType.job) {
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const JobsScreen(),
           ),
         );
       }

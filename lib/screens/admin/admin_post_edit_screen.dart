@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/theme.dart';
 import '../../models/post_model.dart';
+import '../../models/user_model.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -94,39 +95,48 @@ class _AdminPostEditScreenState extends State<AdminPostEditScreen> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.blue.shade100),
                 ),
-                child: Row(
-                  children: [
-                    ProfileAvatar(
-                      imageUrl: widget.post.userImage,
-                      name: widget.post.userName,
-                      size: 40,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Editing post by',
-                            style: TextStyle(fontSize: 12, color: Colors.blue),
+                child: StreamBuilder<UserModel?>(
+                  stream: FirestoreService().getUserStream(widget.post.userId),
+                  builder: (context, snapshot) {
+                    final liveUser = snapshot.data;
+                    final displayName = liveUser?.name ?? widget.post.userName;
+                    final displayImage = liveUser?.profileImage ?? widget.post.userImage;
+
+                    return Row(
+                      children: [
+                        ProfileAvatar(
+                          imageUrl: displayImage,
+                          name: displayName,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Editing post by',
+                                style: TextStyle(fontSize: 12, color: Colors.blue),
+                              ),
+                              Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade900,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                          Text(
-                            widget.post.userName,
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade900,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.admin_panel_settings_rounded, color: Colors.blue.shade300),
-                  ],
+                        ),
+                        Icon(Icons.admin_panel_settings_rounded, color: Colors.blue.shade300),
+                      ],
+                    );
+                  },
                 ),
-              ),
+               ),
               const SizedBox(height: 24),
 
               // Input Label

@@ -73,6 +73,12 @@ class _NotificationsList extends StatelessWidget {
           iconColor: Colors.orange.shade700,
           backgroundColor: Colors.orange.shade50,
         );
+      case NotificationType.job:
+        return _NotificationStyle(
+          icon: Icons.work_rounded,
+          iconColor: Colors.teal.shade700,
+          backgroundColor: Colors.teal.shade50,
+        );
       default:
         return _NotificationStyle(
           icon: Icons.notifications_rounded,

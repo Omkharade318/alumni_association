@@ -11,6 +11,7 @@ import '../models/job_model.dart';
 import '../models/news_model.dart';
 import '../models/comment_model.dart';
 import 'notification_service.dart';
+import 'storage_service.dart';
 import '../utils/constants.dart';
 
 class FirestoreService {
@@ -191,7 +192,14 @@ class FirestoreService {
   }
 
   Future<void> deleteEvent(String eventId) async {
-    await _firestore.collection(AppConstants.eventsCollection).doc(eventId).delete();
+    final doc = await _firestore.collection(AppConstants.eventsCollection).doc(eventId).get();
+    if (doc.exists) {
+      final imageUrl = doc.data()?['imageUrl'] as String?;
+      if (imageUrl != null) {
+        await StorageService().deleteImageFromUrl(imageUrl);
+      }
+      await doc.reference.delete();
+    }
   }
 
   Future<void> rsvpEvent(String eventId, String userId, bool attending) async {
@@ -229,7 +237,14 @@ class FirestoreService {
   }
 
   Future<void> deleteDonation(String donationId) async {
-    await _firestore.collection(AppConstants.donationsCollection).doc(donationId).delete();
+    final doc = await _firestore.collection(AppConstants.donationsCollection).doc(donationId).get();
+    if (doc.exists) {
+      final imageUrl = doc.data()?['imageUrl'] as String?;
+      if (imageUrl != null) {
+        await StorageService().deleteImageFromUrl(imageUrl);
+      }
+      await doc.reference.delete();
+    }
   }
 
   Stream<List<DonationContributionModel>> getDonationContributionsStream(String donationId) {
@@ -649,6 +664,8 @@ class FirestoreService {
     return ids;
   }
 
+  // ──────────────── Jobs & Mentorship ────────────────
+  
   Stream<List<JobModel>> getJobsStream() {
     return _firestore
         .collection(AppConstants.jobsCollection)
@@ -657,12 +674,48 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => JobModel.fromFirestore(doc)).toList());
   }
 
+  Future<void> createJob(JobModel job, {String? senderName}) async {
+    await _firestore.collection(AppConstants.jobsCollection).doc(job.id).set(job.toFirestore());
+    await notifyAllUsers(
+      title: 'New Job Opportunity',
+      body: '${job.title} at ${job.company}',
+      type: NotificationType.job,
+      relatedId: job.id,
+      senderId: 'admin',
+      senderName: senderName ?? 'Admin',
+    );
+  }
+
+  Future<void> updateJob(String jobId, Map<String, dynamic> data) async {
+    await _firestore.collection(AppConstants.jobsCollection).doc(jobId).update(data);
+  }
+
+  Future<void> deleteJob(String jobId) async {
+    final doc = await _firestore.collection(AppConstants.jobsCollection).doc(jobId).get();
+    if (doc.exists) {
+      final logoUrl = doc.data()?['companyLogo'] as String?;
+      if (logoUrl != null) {
+        await StorageService().deleteImageFromUrl(logoUrl);
+      }
+      await doc.reference.delete();
+    }
+  }
+
   Future<void> updatePostContent(String postId, String newContent) async {
     await _firestore.collection(AppConstants.postsCollection).doc(postId).update({'content': newContent});
   }
 
   Future<void> deletePost(String postId) async {
-    await _firestore.collection(AppConstants.postsCollection).doc(postId).delete();
+    final doc = await _firestore.collection(AppConstants.postsCollection).doc(postId).get();
+    if (doc.exists) {
+      final imageUrls = doc.data()?['imageUrls'] as List<dynamic>?;
+      if (imageUrls != null && imageUrls.isNotEmpty) {
+        for (var url in imageUrls) {
+          await StorageService().deleteImageFromUrl(url as String);
+        }
+      }
+      await doc.reference.delete();
+    }
   }
 
   // ──────────────── News & Updates ────────────────
@@ -691,9 +744,13 @@ class FirestoreService {
   }
 
   Future<void> deleteNews(String newsId) async {
-    await _firestore
-        .collection(AppConstants.newsCollection)
-        .doc(newsId)
-        .delete();
+    final doc = await _firestore.collection(AppConstants.newsCollection).doc(newsId).get();
+    if (doc.exists) {
+      final imageUrl = doc.data()?['imageUrl'] as String?;
+      if (imageUrl != null) {
+        await StorageService().deleteImageFromUrl(imageUrl);
+      }
+      await doc.reference.delete();
+    }
   }
 }

@@ -3,6 +3,7 @@ import 'admin_events_screen.dart';
 import 'admin_posts_screen.dart';
 import 'admin_donations_screen.dart';
 import 'admin_news_screen.dart';
+import 'admin_jobs_screen.dart';
 
 class AdminShell extends StatelessWidget {
   const AdminShell({super.key});
@@ -77,6 +78,15 @@ class AdminShell extends StatelessWidget {
             color: Colors.orange.shade600,
             onTap: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminNewsScreen()));
+            },
+          ),
+          _AdminTile(
+            icon: Icons.work_outline_rounded,
+            title: 'Manage Jobs',
+            subtitle: 'Post job opportunities and mentorships',
+            color: Colors.teal.shade600,
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminJobsScreen()));
             },
           ),
         ],

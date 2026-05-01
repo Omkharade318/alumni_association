@@ -16,6 +16,11 @@ class UserModel {
   final DateTime? createdAt;
   final DateTime? lastViewedDonations;
 
+  final bool showEmail;
+  final bool showPhone;
+  final bool showCompany;
+  final bool showLocation;
+
   UserModel({
     required this.uid,
     required this.name,
@@ -31,6 +36,10 @@ class UserModel {
     this.profileImage,
     this.createdAt,
     this.lastViewedDonations,
+    this.showEmail = true,
+    this.showPhone = true,
+    this.showCompany = true,
+    this.showLocation = true,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -54,6 +63,10 @@ class UserModel {
       lastViewedDonations: data['lastViewedDonations'] != null
           ? (data['lastViewedDonations'] as Timestamp).toDate()
           : null,
+      showEmail: data['showEmail'] ?? true,
+      showPhone: data['showPhone'] ?? true,
+      showCompany: data['showCompany'] ?? true,
+      showLocation: data['showLocation'] ?? true,
     );
   }
 
@@ -73,6 +86,10 @@ class UserModel {
       'profileImage': profileImage,
       'createdAt': createdAt ?? FieldValue.serverTimestamp(),
       'lastViewedDonations': lastViewedDonations != null ? Timestamp.fromDate(lastViewedDonations!) : null,
+      'showEmail': showEmail,
+      'showPhone': showPhone,
+      'showCompany': showCompany,
+      'showLocation': showLocation,
     };
   }
 
@@ -115,6 +132,10 @@ class UserModel {
     String? profileImage,
     DateTime? createdAt,
     DateTime? lastViewedDonations,
+    bool? showEmail,
+    bool? showPhone,
+    bool? showCompany,
+    bool? showLocation,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -131,6 +152,10 @@ class UserModel {
       profileImage: profileImage ?? this.profileImage,
       createdAt: createdAt ?? this.createdAt,
       lastViewedDonations: lastViewedDonations ?? this.lastViewedDonations,
+      showEmail: showEmail ?? this.showEmail,
+      showPhone: showPhone ?? this.showPhone,
+      showCompany: showCompany ?? this.showCompany,
+      showLocation: showLocation ?? this.showLocation,
     );
   }
 }

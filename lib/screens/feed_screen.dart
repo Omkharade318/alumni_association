@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -447,136 +448,137 @@ class _PostCard extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
+        height: MediaQuery.of(context).size.height * 0.88,
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
-        child: Column(
+        child: Stack(
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 16, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Comments (${post.commentCount})',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                  IconButton(
-                    icon: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                      child: Icon(Icons.close_rounded, size: 20, color: Colors.grey.shade700),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: Colors.black12),
-            Expanded(
+            // 1. Scrollable Comments List (Placed at the bottom of the stack)
+            Positioned.fill(
+              top: 70, // Pushed down to account for the fixed header
+              bottom: 0,
               child: StreamBuilder<List<CommentModel>>(
                 stream: firestore.getCommentsStream(post.id),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(child: CircularProgressIndicator());
                   }
+
                   final comments = snapshot.data!;
+
                   if (comments.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.chat_bubble_outline_rounded, size: 48, color: Colors.grey.shade300),
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(color: Colors.grey.shade50, shape: BoxShape.circle),
+                            child: Icon(Icons.forum_outlined, size: 56, color: Colors.grey.shade300),
+                          ),
                           const SizedBox(height: 16),
-                          Text('No comments yet.', style: TextStyle(color: Colors.grey.shade600, fontSize: 16)),
-                          const SizedBox(height: 4),
-                          Text('Start the conversation!', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                          Text('No comments yet', style: TextStyle(color: Colors.grey.shade800, fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Text('Be the first to share your thoughts!', style: TextStyle(color: Colors.grey.shade500, fontSize: 15)),
                         ],
                       ),
                     );
                   }
+
                   return ListView.builder(
-                    padding: const EdgeInsets.all(20),
+                    // Extra bottom padding so the last comment isn't hidden behind the floating input
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                     itemCount: comments.length,
                     itemBuilder: (_, i) {
                       final comment = comments[i];
                       final isCommentAuthor = user?.uid == comment.userId;
                       final isPostAuthor = user?.uid == post.userId;
-                      
+
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 20),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                final targetUser = await firestore.getUser(comment.userId);
-                                if (targetUser != null && context.mounted) {
-                                  Navigator.push(context, MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: targetUser)));
-                                }
-                              },
-                              child: ProfileAvatar(imageUrl: comment.userImage, name: comment.userName, size: 40),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Bubble Style Comment
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey.shade100,
-                                      borderRadius: const BorderRadius.only(
-                                        topRight: Radius.circular(16),
-                                        bottomLeft: Radius.circular(16),
-                                        bottomRight: Radius.circular(16),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: StreamBuilder<UserModel?>(
+                          stream: firestore.getUserStream(comment.userId),
+                          builder: (context, userSnapshot) {
+                            final liveUser = userSnapshot.data;
+                            final displayName = liveUser?.name ?? comment.userName;
+                            final displayImage = liveUser?.profileImage ?? comment.userImage;
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Avatar
+                                GestureDetector(
+                                  onTap: () async {
+                                    final targetUser = await firestore.getUser(comment.userId);
+                                    if (targetUser != null && context.mounted) {
+                                      Navigator.push(context, MaterialPageRoute(builder: (_) => AlumniDetailScreen(alumni: targetUser)));
+                                    }
+                                  },
+                                  child: ProfileAvatar(imageUrl: displayImage, name: displayName, size: 42),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Comment Body
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      // Distinct Bubbles: Tinted for the current user, grey for others
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: isCommentAuthor ? AppTheme.primaryRed.withOpacity(0.06) : Colors.grey.shade100,
+                                          borderRadius: const BorderRadius.only(
+                                            topRight: Radius.circular(20),
+                                            bottomLeft: Radius.circular(20),
+                                            bottomRight: Radius.circular(20),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
                                           children: [
-                                            Text(
-                                              comment.userName,
-                                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    displayName,
+                                                    style: TextStyle(
+                                                      fontWeight: FontWeight.bold,
+                                                      fontSize: 14,
+                                                      color: isCommentAuthor ? AppTheme.primaryRed : Colors.black87,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (isCommentAuthor || isPostAuthor)
+                                                  _buildCommentOptions(context, post, comment, isCommentAuthor),
+                                              ],
                                             ),
-                                            if (isCommentAuthor || isPostAuthor)
-                                              _buildCommentOptions(context, post, comment, isCommentAuthor),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              comment.content,
+                                              style: const TextStyle(fontSize: 15, color: Colors.black87, height: 1.4),
+                                            ),
                                           ],
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          comment.content,
-                                          style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Text(
+                                          _formatDate(comment.createdAt),
+                                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
                                         ),
-                                      ],
-                                    ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 6),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 4),
-                                    child: Text(
-                                      _formatDate(comment.createdAt),
-                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       );
                     },
@@ -584,144 +586,139 @@ class _PostCard extends StatelessWidget {
                 },
               ),
             ),
-            SafeArea(
-              child: Container(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 12,
-                  bottom: MediaQuery.of(ctx).viewInsets.bottom > 0 ? MediaQuery.of(ctx).viewInsets.bottom + 12 : 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), offset: const Offset(0, -4), blurRadius: 10),
-                  ],
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: TextField(
-                          controller: commentController,
-                          maxLines: 4,
-                          minLines: 1,
-                          textInputAction: TextInputAction.newline,
-                          decoration: const InputDecoration(
-                            hintText: 'Write a comment...',
-                            hintStyle: TextStyle(color: Colors.grey),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+
+            // 2. Glassmorphic Sticky Header
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    color: Colors.white.withOpacity(0.85),
+                    child: Column(
+                      children: [
+                        // Drag Handle
+                        Center(
+                          child: Container(
+                            width: 40,
+                            height: 5,
+                            margin: const EdgeInsets.only(top: 12, bottom: 8),
+                            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(4)),
                           ),
                         ),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 16, 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Comments (${post.commentCount})',
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                              IconButton(
+                                icon: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                                  child: Icon(Icons.close_rounded, size: 18, color: Colors.grey.shade700),
+                                ),
+                                onPressed: () => Navigator.pop(ctx),
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1, color: Colors.black12),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 2),
-                      decoration: const BoxDecoration(color: AppTheme.primaryRed, shape: BoxShape.circle),
-                      child: IconButton(
-                        icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                        onPressed: () async {
-                          if (commentController.text.trim().isEmpty || user == null) return;
-
-                          final content = commentController.text.trim();
-                          commentController.clear();
-                          FocusScope.of(context).unfocus();
-
-                          final comment = CommentModel(
-                            id: '',
-                            userId: user.uid,
-                            userName: user.name,
-                            userImage: user.profileImage,
-                            content: content,
-                            createdAt: DateTime.now(),
-                          );
-
-                          await firestore.createComment(post.id, comment);
-                        },
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+              ),
+            ),
+
+            // 3. Floating Pill Input Area
+            Positioned(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom > 0 ? MediaQuery.of(ctx).viewInsets.bottom + 12 : 24,
+              left: 16,
+              right: 16,
+              child: StatefulBuilder(
+                  builder: (context, setInputState) {
+                    final hasText = commentController.text.trim().isNotEmpty;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.1), offset: const Offset(0, 4), blurRadius: 16),
+                        ],
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: TextField(
+                              controller: commentController,
+                              maxLines: 4,
+                              minLines: 1,
+                              textInputAction: TextInputAction.newline,
+                              onChanged: (val) => setInputState(() {}), // Trigger rebuild to light up send button
+                              style: const TextStyle(fontSize: 15, height: 1.4),
+                              decoration: const InputDecoration(
+                                hintText: 'Add a comment...',
+                                hintStyle: TextStyle(color: Colors.grey),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(vertical: 14),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6, bottom: 6),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                color: hasText ? AppTheme.primaryRed : Colors.grey.shade100,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.send_rounded, color: hasText ? Colors.white : Colors.grey.shade400, size: 20),
+                                onPressed: hasText
+                                    ? () async {
+                                  if (user == null) return;
+
+                                  final content = commentController.text.trim();
+                                  commentController.clear();
+                                  FocusScope.of(context).unfocus();
+                                  setInputState(() {}); // Reset button state
+
+                                  final comment = CommentModel(
+                                    id: '',
+                                    userId: user.uid,
+                                    userName: user.name,
+                                    userImage: user.profileImage,
+                                    content: content,
+                                    createdAt: DateTime.now(),
+                                  );
+
+                                  await firestore.createComment(post.id, comment);
+                                }
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCommentOptions(BuildContext context, PostModel post, CommentModel comment, bool canEdit) {
-    return PopupMenuButton<String>(
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-      icon: const Icon(Icons.more_horiz, size: 18, color: Colors.grey),
-      onSelected: (value) {
-        if (value == 'edit') {
-          _showEditCommentDialog(context, post, comment);
-        } else if (value == 'delete') {
-          _showDeleteCommentDialog(context, post, comment);
-        }
-      },
-      itemBuilder: (ctx) => [
-        if (canEdit)
-          const PopupMenuItem(value: 'edit', child: Text('Edit')),
-        const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
-      ],
-    );
-  }
-
-  void _showEditCommentDialog(BuildContext context, PostModel post, CommentModel comment) {
-    final controller = TextEditingController(text: comment.content);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Edit Comment'),
-        content: TextField(
-          controller: controller,
-          maxLines: null,
-          decoration: const InputDecoration(hintText: 'Enter comment...'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final newContent = controller.text.trim();
-              if (newContent.isNotEmpty) {
-                await FirestoreService().updateComment(post.id, comment.id, newContent);
-                if (context.mounted) Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteCommentDialog(BuildContext context, PostModel post, CommentModel comment) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Comment'),
-        content: const Text('Are you sure you want to delete this comment?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              await FirestoreService().deleteComment(post.id, comment.id);
-              if (context.mounted) Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Delete'),
-          ),
-        ],
       ),
     );
   }
@@ -736,6 +733,135 @@ class _PostCard extends StatelessWidget {
     if (diff.inHours > 0) return '${diff.inHours}h';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m';
     return 'now';
+  }
+
+  Widget _buildCommentOptions(BuildContext context, PostModel post, CommentModel comment, bool canEdit) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      menuPadding: EdgeInsets.zero,
+      constraints: const BoxConstraints(),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      icon: Icon(Icons.more_horiz_rounded, size: 18, color: Colors.grey.shade500),
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showEditCommentDialog(context, post, comment);
+        } else if (value == 'delete') {
+          _showDeleteCommentDialog(context, post, comment);
+        }
+      },
+      itemBuilder: (ctx) => [
+        if (canEdit)
+          PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_rounded, size: 18, color: Colors.grey.shade700),
+                  const SizedBox(width: 8),
+                  const Text('Edit', style: TextStyle(fontWeight: FontWeight.w500)),
+                ],
+              )
+          ),
+        PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete_rounded, size: 18, color: Colors.red.shade600),
+                const SizedBox(width: 8),
+                Text('Delete', style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w500)),
+              ],
+            )
+        ),
+      ],
+    );
+  }
+
+  void _showEditCommentDialog(BuildContext context, PostModel post, CommentModel comment) {
+    final controller = TextEditingController(text: comment.content);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Edit Comment', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TextField(
+            controller: controller,
+            maxLines: null,
+            autofocus: true,
+            style: const TextStyle(fontSize: 15, height: 1.4),
+            decoration: const InputDecoration(
+              hintText: 'Enter comment...',
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.all(16),
+            ),
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryRed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final newContent = controller.text.trim();
+              if (newContent.isNotEmpty && newContent != comment.content) {
+                await FirestoreService().updateComment(post.id, comment.id, newContent);
+                if (context.mounted) Navigator.pop(ctx);
+              } else if (newContent == comment.content) {
+                Navigator.pop(ctx); // No changes made
+              }
+            },
+            child: const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteCommentDialog(BuildContext context, PostModel post, CommentModel comment) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Comment?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Are you sure you want to delete this comment? This cannot be undone.',
+          style: TextStyle(height: 1.4),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await FirestoreService().deleteComment(post.id, comment.id);
+              if (context.mounted) Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

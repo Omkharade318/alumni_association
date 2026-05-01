@@ -46,6 +46,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       try {
+        // Delete old profile image from Supabase if it exists
+        if (auth.currentUser?.profileImage != null && auth.currentUser!.profileImage!.contains('supabase')) {
+          await StorageService().deleteImageFromUrl(auth.currentUser!.profileImage!);
+        }
         final url = await StorageService().uploadProfileImage(
           auth.currentUser!.uid,
           File(image.path),

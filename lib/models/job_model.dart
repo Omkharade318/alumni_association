@@ -9,6 +9,7 @@ class JobModel {
   final String? description;
   final String? postedBy;
   final DateTime createdAt;
+  final String? applyLink;
 
   JobModel({
     required this.id,
@@ -19,6 +20,7 @@ class JobModel {
     this.description,
     this.postedBy,
     required this.createdAt,
+    this.applyLink,
   });
 
   factory JobModel.fromFirestore(DocumentSnapshot doc) {
@@ -32,8 +34,21 @@ class JobModel {
       description: data['description'],
       postedBy: data['postedBy'],
       createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
+          ? (data['createdAt'] as Timestamp).toDate() : DateTime.now(),
+      applyLink: data['applyLink'],
     );
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'company': company,
+      'companyLogo': companyLogo,
+      'location': location,
+      'description': description,
+      'postedBy': postedBy,
+      'createdAt': createdAt,
+      'applyLink': applyLink,
+    };
   }
 }
